@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soniox ASR 服务</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎙️ Soniox ASR 服务</h1>
+        </header>
+
+        <div class="config-section">
+            <h2>⚙️ 配置</h2>
+            <div class="form-group">
+                <label for="apiKey">API Key:</label>
+                <input type="password" id="apiKey" value="" placeholder="输入 API Key（多个用逗号分隔）">
+                <button id="toggleKeyBtn" class="btn-small">👁️ 显示</button>
+            </div>
+            <p class="hint">💡 支持多个 API Key（用逗号分隔），系统将自动负载均衡</p>
+        </div>
+
+        <div class="main-content">
+            <div class="controls">
+                <h2>📁 文件上传转文字</h2>
+                
+                <div class="info-box">
+                    <p>💡 <strong>智能处理：</strong>≤60分钟直接上传，>60分钟自动均分并行处理</p>
+                    <p>💡 <strong>批量上传：</strong>支持拖拽多个文件，最多 10 个文件</p>
+                    <p>⚡ <strong>完全并行：</strong>所有文件和分段同时处理，最大化速度</p>
+                </div>
+                
+                <div class="options">
+                    <label class="switch">
+                        <input type="checkbox" id="uploadEnableDiarization">
+                        <span class="slider"></span>
+                        <span class="label-text">人声分离</span>
+                    </label>
+                </div>
+
+                <div id="dropZone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <p>📎 拖拽文件到这里</p>
+                        <p>或</p>
+                        <button id="selectFilesBtn" class="btn btn-primary">选择文件</button>
+                        <input type="file" id="fileInput" accept="audio/*,video/*" multiple style="display: none;">
+                    </div>
+                </div>
+
+                <div id="fileList" class="file-list"></div>
+                
+                <div id="processingStatus" class="processing-status" style="display: none;">
+                    <h4>处理进度</h4>
+                    <p>已完成: <span id="currentProcessing">0</span> / <span id="totalFiles">0</span> 个任务 (<span id="progressPercent">0</span>%)</p>
+                    <p>并行任务数: <span id="concurrency">0</span></p>
+                    <div class="progress-bar">
+                        <div id="progressBar" class="progress-fill">
+                            <span class="progress-text">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="uploadBtn" class="btn btn-primary" style="display: none;">开始转录</button>
+                <button id="clearBtn" class="btn btn-danger" style="display: none;">清空列表</button>
+            </div>
+
+            <div class="transcript-box">
+                <h3>转录结果</h3>
+                <div id="resultTabs" class="result-tabs"></div>
+                <div id="uploadTranscript"></div>
+                <button id="downloadBtn" class="btn btn-success" style="display: none;">下载当前结果</button>
+                <button id="downloadAllBtn" class="btn btn-success" style="display: none;">下载全部结果</button>
+            </div>
+
+            <div class="log-box">
+                <h3>📋 处理日志 <button id="clearLogBtn" class="btn-small">清空</button></h3>
+                <div id="logContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
