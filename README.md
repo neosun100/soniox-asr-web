@@ -40,12 +40,14 @@ A complete speech recognition web application based on Soniox API, supporting fi
 
 - ✅ **Multi-format Support**: mp3, wav, m4a, flac, ogg, and 60+ audio formats
 - ✅ **Video Support**: Automatically extract audio from video files (mp4, webm, mov, avi, etc.)
+- ✅ **Audio Processing**: Noise reduction and speed change (1.25x-2.0x) options
 - ✅ **Smart Splitting**: Automatically handles audio files exceeding 5 hours
 - ✅ **Batch Processing**: Upload up to 100 files simultaneously with configurable concurrency
 - ✅ **Speaker Diarization**: Automatically identifies different speakers (up to 15 people)
 - ✅ **Real-time Progress**: Progress bar, percentage, and processing time display
 - ✅ **Smart Retry**: Automatic API key switching on failure, up to 3 retries
 - ✅ **Result Download**: Download individual or batch TXT format transcription results
+- ✅ **Privacy First**: All audio/video processing done in browser, never uploaded to server
 
 ### 🎤 Real-time Speech Recognition (WebSocket)
 
