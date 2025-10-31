@@ -73,3 +73,6 @@ websocket-test.html
 # *.wav
 # *.m4a
 # *.flac
+
+# Docker
+.env
