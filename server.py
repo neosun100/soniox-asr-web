@@ -9,7 +9,6 @@ from typing import List, Optional
 import io
 import json
 import websockets
-from pydub import AudioSegment
 
 app = FastAPI(title="Soniox ASR API", version="1.0.0")
 
