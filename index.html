@@ -93,6 +93,45 @@
                         </div>
                     </div>
 
+                    <!-- 音频处理选项 -->
+                    <div class="audio-processing-section">
+                        <h3>🎚️ 音频处理选项</h3>
+                        <div class="processing-options">
+                            <label class="switch">
+                                <input type="checkbox" id="enableNoiseReduction">
+                                <span class="slider"></span>
+                                <span class="label-text">启用降噪（去除背景噪音）</span>
+                            </label>
+                            
+                            <div class="speed-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="enableSpeedChange">
+                                    <span class="slider"></span>
+                                    <span class="label-text">启用变速</span>
+                                </label>
+                                <div class="speed-options" id="speedOptions" style="display: none;">
+                                    <label class="radio-label">
+                                        <input type="radio" name="speedRate" value="1.25">
+                                        <span>1.25x</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="speedRate" value="1.5" checked>
+                                        <span>1.5x</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="speedRate" value="1.75">
+                                        <span>1.75x</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="speedRate" value="2.0">
+                                        <span>2.0x</span>
+                                    </label>
+                                </div>
+                                <p class="warning-text">⚠️ 注意：变速会改变音调</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="dropZone" class="drop-zone">
                         <div class="drop-zone-content">
                             <p>📎 拖拽文件到这里</p>

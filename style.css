@@ -863,3 +863,44 @@ input[type="file"]:hover {
     font-weight: 500;
     line-height: 1.4;
 }
+
+/* 音频处理选项样式 */
+.audio-processing-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.audio-processing-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #a78bfa;
+}
+
+.processing-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.speed-control {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.speed-options {
+    display: flex;
+    gap: 10px;
+    margin-left: 30px;
+    flex-wrap: wrap;
+}
+
+.warning-text {
+    margin-left: 30px;
+    font-size: 12px;
+    color: #fbbf24;
+    margin-top: 5px;
+}

@@ -18,6 +18,15 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // 变速选项显示/隐藏
+    const enableSpeedChange = document.getElementById('enableSpeedChange');
+    const speedOptions = document.getElementById('speedOptions');
+    if (enableSpeedChange && speedOptions) {
+        enableSpeedChange.addEventListener('change', (e) => {
+            speedOptions.style.display = e.target.checked ? 'flex' : 'none';
+        });
+    }
+    
     // 音频来源切换
     document.querySelectorAll('input[name="audioSource"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
@@ -253,6 +262,18 @@ async function startBatchTranscription() {
         const allTasks = [];
         const fileTaskMap = {};
         
+        // 获取音频处理选项
+        const enableNoiseReduction = document.getElementById('enableNoiseReduction').checked;
+        const enableSpeedChange = document.getElementById('enableSpeedChange').checked;
+        const speedRate = enableSpeedChange ? parseFloat(document.querySelector('input[name="speedRate"]:checked').value) : 1.0;
+        
+        if (enableNoiseReduction) {
+            Logger.info('✓ 已启用降噪处理');
+        }
+        if (enableSpeedChange) {
+            Logger.info(`✓ 已启用变速处理 (${speedRate}x)`);
+        }
+        
         for (let i = 0; i < selectedFiles.length; i++) {
             const file = selectedFiles[i];
             const statusEl = document.getElementById(`status-${i}`);
@@ -264,13 +285,46 @@ async function startBatchTranscription() {
                 try {
                     statusEl.textContent = '提取音频...';
                     const audioBlob = await extractAudioFromVideo(file);
-                    // 创建新的File对象，保留原文件名但改为音频扩展名
                     const audioFileName = file.name.replace(/\.[^.]+$/, '.wav');
                     processFile = new File([audioBlob], audioFileName, { type: 'audio/wav' });
                     Logger.success(`${file.name}: 已转换为音频文件`);
                 } catch (error) {
                     Logger.error(`${file.name}: 音频提取失败 - ${error.message}`);
                     statusEl.textContent = '提取失败';
+                    continue;
+                }
+            }
+            
+            // 音频预处理（降噪和变速）
+            if (enableNoiseReduction || enableSpeedChange) {
+                try {
+                    statusEl.textContent = '音频处理中...';
+                    
+                    // 读取音频数据
+                    const arrayBuffer = await processFile.arrayBuffer();
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    let audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    // 应用降噪
+                    if (enableNoiseReduction) {
+                        audioBuffer = await applyNoiseReduction(audioBuffer);
+                    }
+                    
+                    // 应用变速
+                    if (enableSpeedChange) {
+                        audioBuffer = await applySpeedChange(audioBuffer, speedRate);
+                    }
+                    
+                    // 转换回 WAV 文件
+                    const processedBlob = audioBufferToWav(audioBuffer);
+                    const processedFileName = processFile.name.replace(/\.[^.]+$/, '_processed.wav');
+                    processFile = new File([processedBlob], processedFileName, { type: 'audio/wav' });
+                    
+                    await audioContext.close();
+                    Logger.success(`${file.name}: 音频处理完成`);
+                } catch (error) {
+                    Logger.error(`${file.name}: 音频处理失败 - ${error.message}`);
+                    statusEl.textContent = '处理失败';
                     continue;
                 }
             }
@@ -485,6 +539,93 @@ async function extractAudioFromVideo(videoFile) {
     } catch (error) {
         Logger.error(`${videoFile.name}: 音频提取失败 - ${error.message}`);
         throw new Error('视频文件不包含音频轨道或格式不支持');
+    }
+}
+
+// 降噪处理
+async function applyNoiseReduction(audioBuffer) {
+    Logger.info('应用降噪处理...');
+    
+    try {
+        const offlineContext = new OfflineAudioContext(
+            audioBuffer.numberOfChannels,
+            audioBuffer.length,
+            audioBuffer.sampleRate
+        );
+        
+        const source = offlineContext.createBufferSource();
+        source.buffer = audioBuffer;
+        
+        // 高通滤波器（去除低频噪音 < 80Hz）
+        const highpass = offlineContext.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 80;
+        
+        // 低通滤波器（去除高频噪音 > 3000Hz）
+        const lowpass = offlineContext.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = 3000;
+        
+        // 动态压缩器（平衡音量）
+        const compressor = offlineContext.createDynamicsCompressor();
+        compressor.threshold.value = -50;
+        compressor.ratio.value = 12;
+        compressor.attack.value = 0;
+        compressor.release.value = 0.25;
+        
+        // 连接节点
+        source.connect(highpass);
+        highpass.connect(lowpass);
+        lowpass.connect(compressor);
+        compressor.connect(offlineContext.destination);
+        
+        source.start();
+        const processedBuffer = await offlineContext.startRendering();
+        
+        Logger.success('降噪处理完成');
+        return processedBuffer;
+    } catch (error) {
+        Logger.error(`降噪处理失败: ${error.message}`);
+        throw error;
+    }
+}
+
+// 变速处理
+async function applySpeedChange(audioBuffer, speed) {
+    Logger.info(`应用变速处理 (${speed}x)...`);
+    
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const newLength = Math.floor(audioBuffer.length / speed);
+        
+        const newBuffer = audioContext.createBuffer(
+            audioBuffer.numberOfChannels,
+            newLength,
+            audioBuffer.sampleRate
+        );
+        
+        // 重采样（线性插值）
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const oldData = audioBuffer.getChannelData(channel);
+            const newData = newBuffer.getChannelData(channel);
+            
+            for (let i = 0; i < newLength; i++) {
+                const oldIndex = i * speed;
+                const index1 = Math.floor(oldIndex);
+                const index2 = Math.min(index1 + 1, oldData.length - 1);
+                const fraction = oldIndex - index1;
+                
+                // 线性插值
+                newData[i] = oldData[index1] * (1 - fraction) + oldData[index2] * fraction;
+            }
+        }
+        
+        await audioContext.close();
+        Logger.success(`变速处理完成 (${speed}x)`);
+        return newBuffer;
+    } catch (error) {
+        Logger.error(`变速处理失败: ${error.message}`);
+        throw error;
     }
 }
 
