@@ -727,84 +727,115 @@ input[type="file"]:hover {
 
 /* 页脚样式 */
 .footer {
-    margin-top: 60px;
-    padding: 40px 20px 20px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
-    border-top: 1px solid rgba(139, 92, 246, 0.2);
+    margin-top: 80px;
+    padding: 60px 20px 30px;
+    background: linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.05) 100%);
 }
 
 .star-cta {
     text-align: center;
-    margin-bottom: 30px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.star-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
 }
 
 .star-cta h3 {
-    font-size: 28px;
-    margin-bottom: 10px;
-    color: #fff;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .star-cta p {
     font-size: 16px;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 30px;
 }
 
 .star-actions {
     display: flex;
     justify-content: center;
-    gap: 15px;
+    gap: 12px;
     flex-wrap: wrap;
 }
 
-.star-button {
-    display: inline-block;
-    padding: 12px 30px;
-    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
     color: white;
     text-decoration: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-weight: 600;
-    font-size: 16px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    font-size: 15px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.star-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+.action-btn.primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    border: none;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
 }
 
-.action-link {
-    display: inline-block;
-    padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    text-decoration: none;
-    border-radius: 8px;
-    font-size: 14px;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+.action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.12);
 }
 
-.action-link:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
+.action-btn.primary:hover {
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.6);
+    background: linear-gradient(135deg, #9d6fff 0%, #4c8fff 100%);
+}
+
+.btn-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.btn-text {
+    line-height: 1;
+}
+
+.footer-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.3) 50%, transparent 100%);
+    margin: 40px auto;
+    max-width: 400px;
 }
 
 .footer-text {
     text-align: center;
-    color: rgba(255, 255, 255, 0.6);
+    color: rgba(255, 255, 255, 0.5);
     font-size: 14px;
-    margin-top: 20px;
 }
 
 .footer-text a {
     color: #8b5cf6;
     text-decoration: none;
+    font-weight: 600;
     transition: color 0.3s ease;
 }
 
 .footer-text a:hover {
     color: #a78bfa;
 }
+
