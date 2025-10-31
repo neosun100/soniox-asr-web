@@ -2,225 +2,236 @@
 
 <div align="center">
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.7+-green.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)
+[![GitHub stars](https://img.shields.io/github/stars/neosun100/soniox-asr-web?style=social)](https://github.com/neosun100/soniox-asr-web/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/neosun100/soniox-asr-web?style=social)](https://github.com/neosun100/soniox-asr-web/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/neosun100/soniox-asr-web)](https://github.com/neosun100/soniox-asr-web/issues)
+[![GitHub license](https://img.shields.io/github/license/neosun100/soniox-asr-web)](https://github.com/neosun100/soniox-asr-web/blob/main/LICENSE)
+[![Python](https://img.shields.io/badge/python-3.7+-green.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-009688.svg)](https://fastapi.tiangolo.com/)
 
-基于 Soniox API 的完整语音识别 Web 应用，支持文件转录、实时语音识别和多语言翻译。
-
-[功能特性](#-功能特性) • [快速开始](#-快速开始) • [使用说明](#-使用说明) • [API 文档](#-api-文档) • [部署指南](#-部署指南)
+[简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [English](README.md) | [日本語](README.ja.md)
 
 </div>
 
 ---
 
-## 📸 界面预览
+A complete speech recognition web application based on Soniox API, supporting file transcription, real-time speech recognition, and multilingual translation.
 
-![Soniox ASR 主界面](screenshot-20251031.png)
+## 📸 Interface Preview
 
-**三大核心功能**：
-- **文件转录**：批量上传音频文件，自动切分长音频，并行处理
-- **实时语音**：WebSocket 实时转录，支持麦克风录音和人声分离
-- **多语言翻译**：60+ 语言支持，单向/双向实时翻译
+<div align="center">
 
----
+![Soniox ASR Main Interface](screenshot-20251031.png)
 
-## ✨ 功能特性
+*Modern web interface with three core features: File Transcription, Real-time Speech, and Multilingual Translation*
 
-### 📁 文件转录（REST API）
+</div>
 
-- ✅ **多格式支持**：mp3, wav, m4a, flac, ogg 等 60+ 音频格式
-- ✅ **智能切分**：自动处理超过 5 小时的长音频文件
-- ✅ **批量处理**：最多 100 个文件同时上传，可配置并发数
-- ✅ **人声分离**：自动识别不同说话人（最多 15 人）
-- ✅ **实时进度**：进度条、百分比、处理时长实时显示
-- ✅ **智能重试**：API Key 失效自动切换，最多重试 3 次
-- ✅ **结果下载**：单个或批量下载 TXT 格式转录结果
-
-### 🎤 实时语音识别（WebSocket）
-
-- ✅ **麦克风录音**：浏览器直接录音，实时转录
-- ✅ **流式处理**：边说边转，低延迟响应
-- ✅ **人声分离**：实时识别不同说话人
-- ✅ **语言识别**：自动检测语言并标注
-- ✅ **端点检测**：自动识别说话结束（`<end>` token）
-- ✅ **彩色显示**：不同语言用不同颜色标注
-
-### 🌍 多语言翻译
-
-- ✅ **60+ 语言**：支持中文、英语、日语、韩语、法语、德语等
-- ✅ **单向翻译**：所有语言翻译成目标语言
-- ✅ **双向翻译**：两种语言互译（如中英互译）
-- ✅ **实时翻译**：边说边译，无需等待
-- ✅ **颜色标注**：原文和译文用不同颜色区分
-
-### 🔌 RESTful API 服务
-
-- ✅ **独立后端**：FastAPI 高性能异步服务
-- ✅ **自动切分**：后端自动处理超长音频
-- ✅ **Swagger 文档**：交互式 API 文档
-- ✅ **CORS 支持**：跨域请求支持
+**Three Core Features**:
+- **File Transcription**: Batch upload audio files, automatic long audio splitting, parallel processing
+- **Real-time Speech**: WebSocket real-time transcription with microphone recording and speaker diarization
+- **Multilingual Translation**: 60+ language support with one-way and two-way real-time translation
 
 ---
 
-## 🚀 快速开始
+## ✨ Features
 
-### 前置要求
+### 📁 File Transcription (REST API)
+
+- ✅ **Multi-format Support**: mp3, wav, m4a, flac, ogg, and 60+ audio formats
+- ✅ **Smart Splitting**: Automatically handles audio files exceeding 5 hours
+- ✅ **Batch Processing**: Upload up to 100 files simultaneously with configurable concurrency
+- ✅ **Speaker Diarization**: Automatically identifies different speakers (up to 15 people)
+- ✅ **Real-time Progress**: Progress bar, percentage, and processing time display
+- ✅ **Smart Retry**: Automatic API key switching on failure, up to 3 retries
+- ✅ **Result Download**: Download individual or batch TXT format transcription results
+
+### 🎤 Real-time Speech Recognition (WebSocket)
+
+- ✅ **Microphone Recording**: Direct browser recording with real-time transcription
+- ✅ **Streaming Processing**: Transcribe while speaking with low latency
+- ✅ **Speaker Diarization**: Real-time identification of different speakers
+- ✅ **Language Identification**: Automatic language detection and labeling
+- ✅ **Endpoint Detection**: Automatic speech end detection (`<end>` token)
+- ✅ **Color Display**: Different languages marked with different colors
+
+### 🌍 Multilingual Translation
+
+- ✅ **60+ Languages**: Support for Chinese, English, Japanese, Korean, French, German, etc.
+- ✅ **One-way Translation**: Translate all languages to target language
+- ✅ **Two-way Translation**: Bidirectional translation between two languages (e.g., Chinese-English)
+- ✅ **Real-time Translation**: Translate while speaking, no waiting required
+- ✅ **Color Coding**: Original and translated text distinguished by different colors
+
+### 🔌 RESTful API Service
+
+- ✅ **Independent Backend**: FastAPI high-performance async service
+- ✅ **Auto Splitting**: Backend automatically handles extra-long audio
+- ✅ **Swagger Documentation**: Interactive API documentation
+- ✅ **CORS Support**: Cross-origin request support
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 - Python 3.7+
-- FFmpeg（音频处理）
-- Soniox API Key（[获取地址](https://soniox.com)）
+- FFmpeg (audio processing)
+- Soniox API Key ([Get it here](https://soniox.com))
 
-### 一键启动
+### One-click Startup
 
 ```bash
-# 克隆项目
+# Clone project
 git clone https://github.com/neosun100/soniox-asr-web.git
 cd soniox-asr-web
 
-# 安装依赖
+# Install dependencies
 pip3 install -r requirements.txt
 
-# 安装 FFmpeg
+# Install FFmpeg
 # macOS
 brew install ffmpeg
 # Ubuntu/Debian
 sudo apt-get install ffmpeg
 
-# 一键启动
+# One-click startup
 chmod +x start.sh
 ./start.sh
 ```
 
-启动后自动打开：
-- 前端服务：http://localhost:8000
-- 后端 API：http://localhost:8001
-- API 文档：http://localhost:8001/docs
+After startup, automatically opens:
+- Frontend Service: http://localhost:8000
+- Backend API: http://localhost:8001
+- API Documentation: http://localhost:8001/docs
 
 ---
 
-## 📱 使用说明
+## 📱 Usage Guide
 
-### 1. 配置 API Key
+### 1. Configure API Key
 
-首次使用需要配置 Soniox API Key：
+First-time use requires Soniox API Key configuration:
 
-1. 访问 [Soniox Console](https://soniox.com) 获取 API Key
-2. 在界面顶部输入 API Key（支持多个 Key，逗号分隔）
-3. API Key 自动保存到浏览器 localStorage
+1. Visit [Soniox Console](https://soniox.com) to get API Key
+2. Enter API Key at the top of the interface (supports multiple keys, comma-separated)
+3. API Key automatically saves to browser localStorage
 
-**多 Key 负载均衡**：
+**🔒 Privacy Note**: Your Soniox API keys are stored **only in your browser's localStorage** and are **never transmitted to or stored on our servers**. This ensures maximum privacy and security for your credentials. Keys persist indefinitely unless you clear browser data.
+
+**Multi-Key Load Balancing**:
 ```
 KEY1,KEY2,KEY3
 ```
-系统会自动在多个 Key 之间轮换，避免单点限流。
+System automatically rotates between multiple keys to avoid single-point rate limiting.
 
-### 2. 文件转录
+### 2. File Transcription
 
-#### 基础使用
+#### Basic Usage
 
-1. 切换到"文件转录"标签页
-2. 选择是否启用人声分离
-3. 设置并发任务数（默认 5）
-4. 拖拽或选择音频文件（最多 100 个）
-5. 点击"开始转录"
-6. 查看实时进度和日志
-7. 下载转录结果
+1. Switch to "File Transcription" tab
+2. Choose whether to enable speaker diarization
+3. Set concurrent task count (default 5)
+4. Drag or select audio files (up to 100)
+5. Click "Start Transcription"
+6. View real-time progress and logs
+7. Download transcription results
 
-#### 智能处理
+#### Smart Processing
 
-- **短音频**（≤ 5 小时）：直接处理
-- **长音频**（> 5 小时）：自动切分成多段，并行处理后合并
+- **Short Audio** (≤ 5 hours): Direct processing
+- **Long Audio** (> 5 hours): Automatically split into segments, parallel processing then merge
 
-#### 批量下载
+#### Batch Download
 
-- 单个文件：点击"下载"按钮
-- 批量下载：点击"批量下载所有结果"
+- Single file: Click "Download" button
+- Batch download: Click "Batch Download All Results"
 
-### 3. 实时语音识别
+### 3. Real-time Speech Recognition
 
-#### 基础使用
+#### Basic Usage
 
-1. 切换到"实时语音"标签页
-2. 配置识别参数：
-   - 模型：`stt-rt-preview`（实时模型）
-   - 音频格式：`auto`（自动检测）
-   - 人声分离：开启/关闭
-   - 端点检测：开启/关闭
-   - 语言提示：选择可能的语言
-3. 点击"开始录音"
-4. 对着麦克风说话
-5. 实时查看转录结果
-6. 点击"停止录音"结束
+1. Switch to "Real-time Speech" tab
+2. Configure recognition parameters:
+   - Model: `stt-rt-preview` (real-time model)
+   - Audio Format: `auto` (auto-detect)
+   - Speaker Diarization: On/Off
+   - Endpoint Detection: On/Off
+   - Language Hints: Select possible languages
+3. Click "Start Recording"
+4. Speak into microphone
+5. View real-time transcription results
+6. Click "Stop Recording" to end
 
-#### 高级功能
+#### Advanced Features
 
-**语言识别**：
-- 自动检测说话语言
-- 不同语言用不同颜色标注
-- 支持多语言混合识别
+**Language Identification**:
+- Automatic language detection
+- Different languages marked with different colors
+- Support for mixed-language recognition
 
-**端点检测**：
-- 自动识别说话结束
-- 显示 `<end>` 标记
-- 自动换行分段
+**Endpoint Detection**:
+- Automatic speech end identification
+- Display `<end>` marker
+- Automatic line break segmentation
 
-### 4. 多语言翻译
+### 4. Multilingual Translation
 
-#### 单向翻译
+#### One-way Translation
 
-将所有语言翻译成目标语言：
+Translate all languages to target language:
 
-1. 选择"单向翻译"
-2. 选择目标语言（如"中文"）
-3. 开始录音
-4. 系统自动将所有语言翻译成中文
+1. Select "One-way Translation"
+2. Choose target language (e.g., "Chinese")
+3. Start recording
+4. System automatically translates all languages to Chinese
 
-**适用场景**：国际会议、多语言客服
+**Use Cases**: International conferences, multilingual customer service
 
-#### 双向翻译
+#### Two-way Translation
 
-两种语言互译：
+Bidirectional translation between two languages:
 
-1. 选择"双向翻译"
-2. 选择语言 A（如"英语"）
-3. 选择语言 B（如"中文"）
-4. 开始录音
-5. 英语自动译成中文，中文自动译成英语
+1. Select "Two-way Translation"
+2. Choose Language A (e.g., "English")
+3. Choose Language B (e.g., "Chinese")
+4. Start recording
+5. English automatically translates to Chinese, Chinese to English
 
-**适用场景**：双语对话、实时口译
+**Use Cases**: Bilingual dialogue, real-time interpretation
 
-#### 颜色标注
+#### Color Coding
 
-不同语言用不同颜色显示：
-- 🔵 中文 (zh)
-- 🟢 英语 (en)
-- 🔴 西班牙语 (es)
-- 🟣 法语 (fr)
-- 🟠 德语 (de)
-- 🩷 日语 (ja)
-- 🔷 韩语 (ko)
-- 🟡 阿拉伯语 (ar)
-- 🔺 俄语 (ru)
-- 🔹 葡萄牙语 (pt)
+Different languages displayed in different colors:
+- 🔵 Chinese (zh)
+- 🟢 English (en)
+- 🔴 Spanish (es)
+- 🟣 French (fr)
+- 🟠 German (de)
+- 🩷 Japanese (ja)
+- 🔷 Korean (ko)
+- 🟡 Arabic (ar)
+- 🔺 Russian (ru)
+- 🔹 Portuguese (pt)
 
 ---
 
-## 📚 API 文档
+## 📚 API Documentation
 
-### 文件转录 API
+### File Transcription API
 
-**端点**：`POST /transcribe`
+**Endpoint**: `POST /transcribe`
 
-**请求参数**：
+**Request Parameters**:
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| file | File | ✅ | 音频文件 |
-| api_keys | String | ✅ | 逗号分隔的 API Keys |
-| enable_diarization | Boolean | ❌ | 是否启用人声分离（默认 false）|
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| file | File | ✅ | Audio file |
+| api_keys | String | ✅ | Comma-separated API Keys |
+| enable_diarization | Boolean | ❌ | Enable speaker diarization (default false) |
 
-**cURL 示例**：
+**cURL Example**:
 
 ```bash
 curl -X POST "http://localhost:8001/transcribe" \
@@ -229,7 +240,7 @@ curl -X POST "http://localhost:8001/transcribe" \
   -F "enable_diarization=false"
 ```
 
-**Python 示例**：
+**Python Example**:
 
 ```python
 import requests
@@ -245,19 +256,19 @@ response = requests.post(url, files=files, data=data)
 result = response.json()
 
 if result['success']:
-    print(f"转录文本: {result['text']}")
-    print(f"处理时长: {result['processing_time']['total']}秒")
+    print(f"Transcription: {result['text']}")
+    print(f"Processing time: {result['processing_time']['total']}s")
 ```
 
-**响应格式**：
+**Response Format**:
 
 ```json
 {
   "success": true,
-  "text": "转录的完整文本内容...",
+  "text": "Complete transcription text...",
   "words": [
     {
-      "text": "你好",
+      "text": "Hello",
       "start_time": 0.5,
       "end_time": 0.8
     }
@@ -274,19 +285,19 @@ if result['success']:
 }
 ```
 
-### WebSocket 实时转录
+### WebSocket Real-time Transcription
 
-**端点**：`ws://localhost:8001/ws/transcribe`
+**Endpoint**: `ws://localhost:8001/ws/transcribe` or `wss://your-domain.com/ws/transcribe`
 
-**连接流程**：
+**Connection Flow**:
 
-1. 建立 WebSocket 连接
-2. 发送配置消息（JSON）
-3. 发送音频数据（二进制）
-4. 接收实时转录结果（JSON）
-5. 发送空帧结束
+1. Establish WebSocket connection
+2. Send configuration message (JSON)
+3. Send audio data (binary)
+4. Receive real-time transcription results (JSON)
+5. Send empty frame to end
 
-**配置参数**：
+**Configuration Parameters**:
 
 ```json
 {
@@ -304,13 +315,14 @@ if result['success']:
 }
 ```
 
-**JavaScript 示例**：
+**JavaScript Example**:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8001/ws/transcribe');
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(`${protocol}//${window.location.host}/ws/transcribe`);
 
 ws.onopen = async () => {
-    // 1. 发送配置
+    // 1. Send configuration
     ws.send(JSON.stringify({
         api_key: 'YOUR_API_KEY',
         model: 'stt-rt-preview',
@@ -318,7 +330,7 @@ ws.onopen = async () => {
         enable_speaker_diarization: true
     }));
     
-    // 2. 获取麦克风并发送音频
+    // 2. Get microphone and send audio
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mediaRecorder = new MediaRecorder(stream);
     
@@ -330,13 +342,13 @@ ws.onopen = async () => {
         }
     };
     
-    mediaRecorder.start(100); // 每 100ms 发送一次
+    mediaRecorder.start(100); // Send every 100ms
 };
 
 ws.onmessage = (event) => {
     const result = JSON.parse(event.data);
     
-    // 3. 处理转录结果
+    // 3. Process transcription results
     if (result.tokens) {
         result.tokens.forEach(token => {
             if (token.is_final) {
@@ -347,7 +359,7 @@ ws.onmessage = (event) => {
 };
 ```
 
-**响应格式**：
+**Response Format**:
 
 ```json
 {
@@ -369,23 +381,23 @@ ws.onmessage = (event) => {
 
 ---
 
-## 🚀 部署指南
+## 🚀 Deployment Guide
 
-### 本地开发
+### Local Development
 
 ```bash
-# 启动后端
+# Start backend
 python3 server.py
 
-# 启动前端（新终端）
+# Start frontend (new terminal)
 python3 -m http.server 8000
 ```
 
-### 生产部署（Nginx + Systemd）
+### Production Deployment (Nginx + Systemd)
 
-#### 1. 创建 Systemd 服务
+#### 1. Create Systemd Services
 
-**API 服务**（`/etc/systemd/system/soniox-api.service`）：
+**API Service** (`/etc/systemd/system/soniox-api.service`):
 
 ```ini
 [Unit]
@@ -407,7 +419,7 @@ StandardError=append:/root/soniox-asr-web/logs/api-error.log
 WantedBy=multi-user.target
 ```
 
-**Web 服务**（`/etc/systemd/system/soniox-web.service`）：
+**Web Service** (`/etc/systemd/system/soniox-web.service`):
 
 ```ini
 [Unit]
@@ -428,7 +440,7 @@ StandardError=append:/root/soniox-asr-web/logs/web-error.log
 WantedBy=multi-user.target
 ```
 
-#### 2. 配置 Nginx
+#### 2. Configure Nginx
 
 ```nginx
 server {
@@ -438,7 +450,7 @@ server {
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
 
-    # WebSocket 支持
+    # WebSocket support
     location /ws/ {
         proxy_pass http://127.0.0.1:8001;
         proxy_http_version 1.1;
@@ -451,7 +463,7 @@ server {
         proxy_read_timeout 86400;
     }
 
-    # API 支持
+    # API support
     location /transcribe {
         proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
@@ -465,7 +477,7 @@ server {
         proxy_set_header Host $host;
     }
 
-    # 前端静态文件
+    # Frontend static files
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
@@ -476,121 +488,121 @@ server {
 }
 ```
 
-#### 3. 启动服务
+#### 3. Start Services
 
 ```bash
-# 创建日志目录
+# Create logs directory
 mkdir -p /root/soniox-asr-web/logs
 
-# 启动服务
+# Start services
 systemctl daemon-reload
 systemctl enable soniox-api.service soniox-web.service
-systemctl start soniox-api.service soniox-web.service
+systemctl start soniox-asr-web.service soniox-web.service
 
-# 检查状态
+# Check status
 systemctl status soniox-api.service soniox-web.service
 
-# 重启 Nginx
+# Reload Nginx
 nginx -t
 systemctl reload nginx
 ```
 
 ---
 
-## 🛠️ 技术架构
+## 🛠️ Technology Stack
 
-### 前端技术栈
+### Frontend
 
 - HTML5 + CSS3 + Vanilla JavaScript
-- Web Audio API（音频处理）
-- MediaRecorder API（麦克风录音）
-- WebSocket API（实时通信）
-- Fetch API（文件上传）
-- localStorage（数据持久化）
+- Web Audio API (audio processing)
+- MediaRecorder API (microphone recording)
+- WebSocket API (real-time communication)
+- Fetch API (file upload)
+- localStorage (data persistence)
 
-### 后端技术栈
+### Backend
 
-- FastAPI（Web 框架）
-- Uvicorn（ASGI 服务器）
-- HTTPX（异步 HTTP 客户端）
-- Pydub（音频处理）
-- WebSockets（实时通信）
-- python-multipart（文件上传）
+- FastAPI (web framework)
+- Uvicorn (ASGI server)
+- HTTPX (async HTTP client)
+- Pydub (audio processing)
+- WebSockets (real-time communication)
+- python-multipart (file upload)
 
-### 支持的音频格式
+### Supported Audio Formats
 
 mp3, wav, m4a, flac, ogg, aac, webm, mp4, aiff, amr, asf, wma, opus
 
-### 支持的语言（60+）
+### Supported Languages (60+)
 
-中文、英语、日语、韩语、法语、德语、西班牙语、葡萄牙语、俄语、阿拉伯语、意大利语、荷兰语、波兰语、土耳其语、瑞典语、丹麦语、挪威语、芬兰语、希腊语、捷克语、匈牙利语、罗马尼亚语、泰语、越南语、印尼语、马来语、菲律宾语、印地语、孟加拉语、乌尔都语、波斯语、希伯来语等
-
----
-
-## ⚠️ 限制说明
-
-| 限制项 | 值 | 说明 |
-|--------|-----|------|
-| 单文件时长 | 5 小时 | 超过自动切分 |
-| 批量上传 | 100 个文件 | 可配置并发数 |
-| WebSocket 超时 | 24 小时 | Nginx 配置 |
-| 人声分离 | 15 人 | Soniox API 限制 |
+Chinese, English, Japanese, Korean, French, German, Spanish, Portuguese, Russian, Arabic, Italian, Dutch, Polish, Turkish, Swedish, Danish, Norwegian, Finnish, Greek, Czech, Hungarian, Romanian, Thai, Vietnamese, Indonesian, Malay, Filipino, Hindi, Bengali, Urdu, Persian, Hebrew, etc.
 
 ---
 
-## 🔒 安全建议
+## ⚠️ Limitations
 
-### 开发环境
-- ✅ 使用 localhost 测试
-- ✅ API Key 保存在 localStorage
-- ✅ 不要提交 API Key 到代码仓库
-
-### 生产环境
-- ⚠️ 使用 HTTPS/WSS
-- ⚠️ 配置 Nginx 反向代理
-- ⚠️ 使用环境变量管理 API Key
-- ⚠️ 定期轮换 API Key
-- ⚠️ 设置请求频率限制
-- ⚠️ 启用基本认证（可选）
+| Item | Value | Description |
+|------|-------|-------------|
+| Single File Duration | 5 hours | Auto-split if exceeded |
+| Batch Upload | 100 files | Configurable concurrency |
+| WebSocket Timeout | 24 hours | Nginx configuration |
+| Speaker Diarization | 15 people | Soniox API limit |
 
 ---
 
-## 🐛 故障排除
+## 🔒 Security Recommendations
 
-### WebSocket 连接失败
+### Development Environment
+- ✅ Use localhost for testing
+- ✅ API Keys saved in localStorage
+- ✅ Don't commit API Keys to code repository
 
-**问题**：`WebSocket connection failed`
+### Production Environment
+- ⚠️ Use HTTPS/WSS
+- ⚠️ Configure Nginx reverse proxy
+- ⚠️ Use environment variables for API Keys
+- ⚠️ Regularly rotate API Keys
+- ⚠️ Set request rate limits
+- ⚠️ Enable basic authentication (optional)
 
-**解决方案**：
-1. 检查 Nginx 是否配置 WebSocket 支持
-2. 确认使用 `wss://`（HTTPS）或 `ws://`（HTTP）
-3. 检查防火墙是否开放端口
-4. 查看浏览器控制台错误信息
+---
 
-### 转录失败
+## 🐛 Troubleshooting
 
-**问题**：`所有 API Key 都已失效`
+### WebSocket Connection Failed
 
-**解决方案**：
-1. 验证 API Key 是否正确
-2. 检查 API Key 是否过期
-3. 确认 Soniox 账户余额充足
-4. 尝试使用多个 API Key
+**Issue**: `WebSocket connection failed`
 
-### 音频处理失败
+**Solutions**:
+1. Check if Nginx has WebSocket support configured
+2. Confirm using `wss://` (HTTPS) or `ws://` (HTTP)
+3. Check if firewall has opened ports
+4. View browser console error messages
 
-**问题**：`FFmpeg not found`
+### Transcription Failed
 
-**解决方案**：
+**Issue**: `All API Keys have failed`
+
+**Solutions**:
+1. Verify API Key is correct
+2. Check if API Key has expired
+3. Confirm Soniox account has sufficient balance
+4. Try using multiple API Keys
+
+### Audio Processing Failed
+
+**Issue**: `FFmpeg not found`
+
+**Solutions**:
 ```bash
-# 安装 FFmpeg
+# Install FFmpeg
 brew install ffmpeg  # macOS
 sudo apt-get install ffmpeg  # Ubuntu
 ```
 
 ---
 
-## 📦 依赖项
+## 📦 Dependencies
 
 ```txt
 fastapi==0.104.1
@@ -603,75 +615,95 @@ websockets==12.0
 
 ---
 
-## 🔄 更新日志
+## 🔄 Changelog
 
 ### v3.0.0 (2025-10-31)
-- ✨ 新增 WebSocket 实时语音识别
-- ✨ 新增多语言翻译功能（60+ 语言）
-- ✨ 新增麦克风录音支持
-- ✨ 新增语言识别和颜色标注
-- ✨ 新增端点检测功能
-- ✨ 优化 Nginx 配置支持 WebSocket
-- 🐛 修复长音频切分逻辑（5 小时）
-- 🐛 修复并发控制问题
-- 📝 完善部署文档
+- ✨ Added WebSocket real-time speech recognition
+- ✨ Added multilingual translation (60+ languages)
+- ✨ Added microphone recording support
+- ✨ Added language identification and color coding
+- ✨ Added endpoint detection
+- ✨ Optimized Nginx configuration for WebSocket support
+- 🐛 Fixed long audio splitting logic (5 hours)
+- 🐛 Fixed concurrency control issues
+- 📝 Improved deployment documentation
 
 ### v2.1.0 (2025-01-11)
-- ✨ 新增 API Key 持久化存储
-- 🔒 清除所有默认 API Key
-- 📝 完善文档和使用说明
+- ✨ Added API Key persistent storage
+- 🔒 Removed all default API Keys
+- 📝 Improved documentation and usage instructions
 
 ### v2.0.0 (2025-01-11)
-- ✨ 新增 RESTful API 服务
-- ✨ 新增 API Key 失效自动重试
-- ✨ 新增详细时长统计
-- ✨ 新增 Swagger 文档
+- ✨ Added RESTful API service
+- ✨ Added automatic API Key retry on failure
+- ✨ Added detailed duration statistics
+- ✨ Added Swagger documentation
 
 ### v1.0.0 (2025-01-10)
-- ✨ 基础文件上传转文字功能
-- ✨ 多文件批量处理
-- ✨ 智能音频切分
+- ✨ Basic file upload to text functionality
+- ✨ Multi-file batch processing
+- ✨ Smart audio splitting
 
 ---
 
-## 📄 许可证
+## 📄 License
 
 MIT License
 
 ---
 
-## 🔗 相关链接
+## 🔗 Related Links
 
-- [Soniox 官网](https://soniox.com)
-- [Soniox API 文档](https://soniox.com/docs)
-- [FastAPI 文档](https://fastapi.tiangolo.com)
-- [GitHub 仓库](https://github.com/neosun100/soniox-asr-web)
-
----
-
-## 🤝 贡献
-
-欢迎贡献代码、报告问题或提出建议！
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+- [Soniox Official Website](https://soniox.com)
+- [Soniox API Documentation](https://soniox.com/docs)
+- [FastAPI Documentation](https://fastapi.tiangolo.com)
+- [GitHub Repository](https://github.com/neosun100/soniox-asr-web)
 
 ---
 
-## 📧 联系方式
+## 🤝 Contributing
 
-- GitHub Issues: [提交问题](https://github.com/neosun100/soniox-asr-web/issues)
+Contributions, issue reports, and suggestions are welcome!
+
+1. Fork this project
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+---
+
+## 📧 Contact
+
+- GitHub Issues: [Submit Issue](https://github.com/neosun100/soniox-asr-web/issues)
 - Email: neosun808@gmail.com
 
 ---
 
 <div align="center">
 
-**⭐ 如果这个项目对你有帮助，请给个 Star！⭐**
+### ⭐ Star History
 
-Made with ❤️ by Neo Sun
+[![Star History Chart](https://api.star-history.com/svg?repos=neosun100/soniox-asr-web&type=Date)](https://star-history.com/#neosun100/soniox-asr-web&Date)
+
+</div>
+
+---
+
+<div align="center">
+
+## 🌟 Give Us a Star! 🌟
+
+**If this project helps you, please give it a ⭐ Star on GitHub!**
+
+Your support is the greatest motivation for us to keep improving! 🚀
+
+[![GitHub stars](https://img.shields.io/github/stars/neosun100/soniox-asr-web?style=social)](https://github.com/neosun100/soniox-asr-web/stargazers)
+
+[⭐ Star this repo](https://github.com/neosun100/soniox-asr-web) | [🐛 Report Bug](https://github.com/neosun100/soniox-asr-web/issues) | [✨ Request Feature](https://github.com/neosun100/soniox-asr-web/issues)
+
+---
+
+Made with ❤️ by [Neo Sun](https://github.com/neosun100)
 
 </div>
