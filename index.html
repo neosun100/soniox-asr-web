@@ -5,6 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Soniox ASR 服务</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        .tab {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            transition: all 0.3s;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab:hover {
+            background: rgba(255,255,255,1);
+            color: #000;
+        }
+        .tab.active {
+            background: rgba(255,255,255,0.95);
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -15,72 +50,473 @@
         <div class="config-section">
             <h2>⚙️ 配置</h2>
             <div class="form-group">
-                <label for="apiKey">API Key:</label>
-                <input type="password" id="apiKey" value="" placeholder="输入 API Key（多个用逗号分隔）">
+                <label for="apiKey">API Keys:</label>
+                <input type="password" id="apiKey" placeholder="输入 API Keys（多个用逗号分隔）">
                 <button id="toggleKeyBtn" class="btn-small">👁️ 显示</button>
             </div>
             <p class="hint">💡 支持多个 API Key（用逗号分隔），系统将自动负载均衡</p>
         </div>
 
-        <div class="main-content">
-            <div class="controls">
-                <h2>📁 文件上传转文字</h2>
-                
-                <div class="info-box">
-                    <p>💡 <strong>智能处理：</strong>≤60分钟直接上传，>60分钟自动均分并行处理</p>
-                    <p>💡 <strong>批量上传：</strong>支持拖拽多个文件，最多 10 个文件</p>
-                    <p>⚡ <strong>完全并行：</strong>所有文件和分段同时处理，最大化速度</p>
-                </div>
-                
-                <div class="options">
-                    <label class="switch">
-                        <input type="checkbox" id="uploadEnableDiarization">
-                        <span class="slider"></span>
-                        <span class="label-text">人声分离</span>
-                    </label>
-                </div>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('rest')">📁 REST API 批量上传</button>
+            <button class="tab" onclick="switchTab('websocket')">⚡ WebSocket 快速转录</button>
+        </div>
 
-                <div id="dropZone" class="drop-zone">
-                    <div class="drop-zone-content">
-                        <p>📎 拖拽文件到这里</p>
-                        <p>或</p>
-                        <button id="selectFilesBtn" class="btn btn-primary">选择文件</button>
-                        <input type="file" id="fileInput" accept="audio/*,video/*" multiple style="display: none;">
+        <!-- REST API Tab -->
+        <div id="rest-tab" class="tab-content active">
+            <div class="main-content">
+                <div class="controls">
+                    <h2>📁 批量文件上传</h2>
+                    
+                    <div class="info-box">
+                        <p>💡 <strong>批量上传：</strong>支持拖拽多个文件，最多 100 个</p>
+                        <p>⚡ <strong>智能并行：</strong>可调节并行度，避免 API 限流</p>
+                        <p>📏 <strong>自动切分：</strong>单文件最长 5 小时，超出自动切分并合并</p>
+                        <p>⏰ <strong>处理时间：</strong>通常 1-3 分钟/文件</p>
                     </div>
-                </div>
-
-                <div id="fileList" class="file-list"></div>
-                
-                <div id="processingStatus" class="processing-status" style="display: none;">
-                    <h4>处理进度</h4>
-                    <p>已完成: <span id="currentProcessing">0</span> / <span id="totalFiles">0</span> 个任务 (<span id="progressPercent">0</span>%)</p>
-                    <p>并行任务数: <span id="concurrency">0</span></p>
-                    <div class="progress-bar">
-                        <div id="progressBar" class="progress-fill">
-                            <span class="progress-text">0%</span>
+                    
+                    <div class="options">
+                        <label class="switch">
+                            <input type="checkbox" id="uploadEnableDiarization">
+                            <span class="slider"></span>
+                            <span class="label-text">人声分离</span>
+                        </label>
+                        <div class="concurrency-control">
+                            <label for="concurrencyLimit">并行度</label>
+                            <input type="number" id="concurrencyLimit" min="1" max="20" value="5">
+                            <span class="hint-text">同时处理任务数</span>
                         </div>
                     </div>
+
+                    <div id="dropZone" class="drop-zone">
+                        <div class="drop-zone-content">
+                            <p>📎 拖拽文件到这里</p>
+                            <p>或</p>
+                            <button id="selectFilesBtn" class="btn btn-primary">选择文件</button>
+                            <input type="file" id="fileInput" accept="audio/*,video/*" multiple style="display: none;">
+                        </div>
+                    </div>
+
+                    <div id="fileList" class="file-list"></div>
+                    
+                    <div id="processingStatus" class="processing-status" style="display: none;">
+                        <h4>处理进度</h4>
+                        <p>已完成: <span id="currentProcessing">0</span> / <span id="totalFiles">0</span> (<span id="progressPercent">0</span>%)</p>
+                        <p>并行任务数: <span id="concurrency">0</span></p>
+                        <div class="progress-bar">
+                            <div id="progressBar" class="progress-fill">
+                                <span class="progress-text">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="uploadBtn" class="btn btn-primary" style="display: none;">开始转录</button>
+                    <button id="clearBtn" class="btn btn-danger" style="display: none;">清空列表</button>
                 </div>
 
-                <button id="uploadBtn" class="btn btn-primary" style="display: none;">开始转录</button>
-                <button id="clearBtn" class="btn btn-danger" style="display: none;">清空列表</button>
-            </div>
+                <div class="transcript-box">
+                    <h3>转录结果</h3>
+                    <div id="resultTabs" class="result-tabs"></div>
+                    <div id="uploadTranscript"></div>
+                    <button id="downloadBtn" class="btn btn-success" style="display: none;">下载当前结果</button>
+                    <button id="downloadAllBtn" class="btn btn-success" style="display: none;">下载全部结果</button>
+                </div>
 
-            <div class="transcript-box">
-                <h3>转录结果</h3>
-                <div id="resultTabs" class="result-tabs"></div>
-                <div id="uploadTranscript"></div>
-                <button id="downloadBtn" class="btn btn-success" style="display: none;">下载当前结果</button>
-                <button id="downloadAllBtn" class="btn btn-success" style="display: none;">下载全部结果</button>
+                <div class="log-box">
+                    <h3>📋 处理日志 <button id="clearLogBtn" class="btn-small">清空</button></h3>
+                    <div id="logContent"></div>
+                </div>
             </div>
+        </div>
 
-            <div class="log-box">
-                <h3>📋 处理日志 <button id="clearLogBtn" class="btn-small">清空</button></h3>
-                <div id="logContent"></div>
+        <!-- WebSocket Tab -->
+        <div id="websocket-tab" class="tab-content">
+            <div class="main-content">
+                <div class="controls">
+                    <h2>⚡ 实时语音识别 + 翻译</h2>
+                    
+                    <div class="info-box">
+                        <p>⚡ <strong>实时识别：</strong>支持 60+ 种语言自动识别</p>
+                        <p>🌐 <strong>实时翻译：</strong>支持单向/双向翻译</p>
+                        <p>💡 <strong>多人对话：</strong>自动识别不同说话人</p>
+                    </div>
+
+                    <div class="options">
+                        <label class="switch">
+                            <input type="checkbox" id="wsDiarization" checked>
+                            <span class="slider"></span>
+                            <span class="label-text">人声分离</span>
+                        </label>
+                        
+                        <label class="switch">
+                            <input type="checkbox" id="wsLanguageId" checked>
+                            <span class="slider"></span>
+                            <span class="label-text">语言识别</span>
+                        </label>
+                    </div>
+
+                    <div class="translation-section">
+                        <h4>🌐 翻译设置</h4>
+                        
+                        <div class="translation-mode">
+                            <label class="radio-option">
+                                <input type="radio" name="translationType" value="none" checked>
+                                <span class="radio-label">不翻译</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="translationType" value="one_way">
+                                <span class="radio-label">单向翻译</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="translationType" value="two_way">
+                                <span class="radio-label">双向翻译</span>
+                            </label>
+                        </div>
+                        <div id="oneWayOptions" class="translation-options" style="display: none;">
+                            <label class="select-label">目标语言:</label>
+                            <select id="targetLang" class="lang-select">
+                                <option value="zh">中文 (zh)</option>
+                                <option value="en">英语 (en)</option>
+                                <option value="es">西班牙语 (es)</option>
+                                <option value="fr">法语 (fr)</option>
+                                <option value="de">德语 (de)</option>
+                                <option value="ja">日语 (ja)</option>
+                                <option value="ko">韩语 (ko)</option>
+                                <option value="ar">阿拉伯语 (ar)</option>
+                                <option value="ru">俄语 (ru)</option>
+                                <option value="pt">葡萄牙语 (pt)</option>
+                                <option value="it">意大利语 (it)</option>
+                                <option value="nl">荷兰语 (nl)</option>
+                                <option value="pl">波兰语 (pl)</option>
+                                <option value="tr">土耳其语 (tr)</option>
+                                <option value="vi">越南语 (vi)</option>
+                                <option value="th">泰语 (th)</option>
+                                <option value="id">印尼语 (id)</option>
+                                <option value="hi">印地语 (hi)</option>
+                                <option value="uk">乌克兰语 (uk)</option>
+                                <option value="cs">捷克语 (cs)</option>
+                                <option value="el">希腊语 (el)</option>
+                                <option value="ro">罗马尼亚语 (ro)</option>
+                                <option value="da">丹麦语 (da)</option>
+                                <option value="fi">芬兰语 (fi)</option>
+                                <option value="sv">瑞典语 (sv)</option>
+                                <option value="no">挪威语 (no)</option>
+                                <option value="hu">匈牙利语 (hu)</option>
+                                <option value="he">希伯来语 (he)</option>
+                                <option value="fa">波斯语 (fa)</option>
+                                <option value="bn">孟加拉语 (bn)</option>
+                                <option value="ta">泰米尔语 (ta)</option>
+                                <option value="te">泰卢固语 (te)</option>
+                                <option value="mr">马拉地语 (mr)</option>
+                                <option value="gu">古吉拉特语 (gu)</option>
+                                <option value="kn">卡纳达语 (kn)</option>
+                                <option value="ml">马拉雅拉姆语 (ml)</option>
+                                <option value="pa">旁遮普语 (pa)</option>
+                                <option value="ur">乌尔都语 (ur)</option>
+                                <option value="af">南非荷兰语 (af)</option>
+                                <option value="sq">阿尔巴尼亚语 (sq)</option>
+                                <option value="az">阿塞拜疆语 (az)</option>
+                                <option value="eu">巴斯克语 (eu)</option>
+                                <option value="be">白俄罗斯语 (be)</option>
+                                <option value="bs">波斯尼亚语 (bs)</option>
+                                <option value="bg">保加利亚语 (bg)</option>
+                                <option value="ca">加泰罗尼亚语 (ca)</option>
+                                <option value="hr">克罗地亚语 (hr)</option>
+                                <option value="et">爱沙尼亚语 (et)</option>
+                                <option value="gl">加利西亚语 (gl)</option>
+                                <option value="kk">哈萨克语 (kk)</option>
+                                <option value="lv">拉脱维亚语 (lv)</option>
+                                <option value="lt">立陶宛语 (lt)</option>
+                                <option value="mk">马其顿语 (mk)</option>
+                                <option value="ms">马来语 (ms)</option>
+                                <option value="sr">塞尔维亚语 (sr)</option>
+                                <option value="sk">斯洛伐克语 (sk)</option>
+                                <option value="sl">斯洛文尼亚语 (sl)</option>
+                                <option value="sw">斯瓦希里语 (sw)</option>
+                                <option value="tl">他加禄语 (tl)</option>
+                                <option value="cy">威尔士语 (cy)</option>
+                            </select>
+                        </div>
+                        
+                        <div id="twoWayOptions" class="translation-options" style="display: none;">
+                            <div class="two-way-container">
+                                <div class="lang-group">
+                                    <label class="select-label">语言 A:</label>
+                                    <select id="langA" class="lang-select">
+                                        <option value="en">英语 (en)</option>
+                                        <option value="zh">中文 (zh)</option>
+                                        <option value="es">西班牙语 (es)</option>
+                                        <option value="fr">法语 (fr)</option>
+                                        <option value="de">德语 (de)</option>
+                                        <option value="ja">日语 (ja)</option>
+                                        <option value="ko">韩语 (ko)</option>
+                                        <option value="ar">阿拉伯语 (ar)</option>
+                                        <option value="ru">俄语 (ru)</option>
+                                        <option value="pt">葡萄牙语 (pt)</option>
+                                        <option value="it">意大利语 (it)</option>
+                                        <option value="nl">荷兰语 (nl)</option>
+                                        <option value="pl">波兰语 (pl)</option>
+                                        <option value="tr">土耳其语 (tr)</option>
+                                        <option value="vi">越南语 (vi)</option>
+                                        <option value="th">泰语 (th)</option>
+                                        <option value="id">印尼语 (id)</option>
+                                        <option value="hi">印地语 (hi)</option>
+                                        <option value="uk">乌克兰语 (uk)</option>
+                                        <option value="cs">捷克语 (cs)</option>
+                                        <option value="el">希腊语 (el)</option>
+                                        <option value="ro">罗马尼亚语 (ro)</option>
+                                        <option value="da">丹麦语 (da)</option>
+                                        <option value="fi">芬兰语 (fi)</option>
+                                        <option value="sv">瑞典语 (sv)</option>
+                                        <option value="no">挪威语 (no)</option>
+                                        <option value="hu">匈牙利语 (hu)</option>
+                                        <option value="he">希伯来语 (he)</option>
+                                        <option value="fa">波斯语 (fa)</option>
+                                        <option value="bn">孟加拉语 (bn)</option>
+                                        <option value="ta">泰米尔语 (ta)</option>
+                                        <option value="te">泰卢固语 (te)</option>
+                                        <option value="mr">马拉地语 (mr)</option>
+                                        <option value="gu">古吉拉特语 (gu)</option>
+                                        <option value="kn">卡纳达语 (kn)</option>
+                                        <option value="ml">马拉雅拉姆语 (ml)</option>
+                                        <option value="pa">旁遮普语 (pa)</option>
+                                        <option value="ur">乌尔都语 (ur)</option>
+                                        <option value="af">南非荷兰语 (af)</option>
+                                        <option value="sq">阿尔巴尼亚语 (sq)</option>
+                                        <option value="az">阿塞拜疆语 (az)</option>
+                                        <option value="eu">巴斯克语 (eu)</option>
+                                        <option value="be">白俄罗斯语 (be)</option>
+                                        <option value="bs">波斯尼亚语 (bs)</option>
+                                        <option value="bg">保加利亚语 (bg)</option>
+                                        <option value="ca">加泰罗尼亚语 (ca)</option>
+                                        <option value="hr">克罗地亚语 (hr)</option>
+                                        <option value="et">爱沙尼亚语 (et)</option>
+                                        <option value="gl">加利西亚语 (gl)</option>
+                                        <option value="kk">哈萨克语 (kk)</option>
+                                        <option value="lv">拉脱维亚语 (lv)</option>
+                                        <option value="lt">立陶宛语 (lt)</option>
+                                        <option value="mk">马其顿语 (mk)</option>
+                                        <option value="ms">马来语 (ms)</option>
+                                        <option value="sr">塞尔维亚语 (sr)</option>
+                                        <option value="sk">斯洛伐克语 (sk)</option>
+                                        <option value="sl">斯洛文尼亚语 (sl)</option>
+                                        <option value="sw">斯瓦希里语 (sw)</option>
+                                        <option value="tl">他加禄语 (tl)</option>
+                                        <option value="cy">威尔士语 (cy)</option>
+                                    </select>
+                                </div>
+                                <span class="arrow">↔</span>
+                                <div class="lang-group">
+                                    <label class="select-label">语言 B:</label>
+                                    <select id="langB" class="lang-select">
+                                        <option value="zh">中文 (zh)</option>
+                                        <option value="en">英语 (en)</option>
+                                        <option value="es">西班牙语 (es)</option>
+                                        <option value="fr">法语 (fr)</option>
+                                        <option value="de">德语 (de)</option>
+                                        <option value="ja">日语 (ja)</option>
+                                        <option value="ko">韩语 (ko)</option>
+                                        <option value="ar">阿拉伯语 (ar)</option>
+                                        <option value="ru">俄语 (ru)</option>
+                                        <option value="pt">葡萄牙语 (pt)</option>
+                                        <option value="it">意大利语 (it)</option>
+                                        <option value="nl">荷兰语 (nl)</option>
+                                        <option value="pl">波兰语 (pl)</option>
+                                        <option value="tr">土耳其语 (tr)</option>
+                                        <option value="vi">越南语 (vi)</option>
+                                        <option value="th">泰语 (th)</option>
+                                        <option value="id">印尼语 (id)</option>
+                                        <option value="hi">印地语 (hi)</option>
+                                        <option value="uk">乌克兰语 (uk)</option>
+                                        <option value="cs">捷克语 (cs)</option>
+                                        <option value="el">希腊语 (el)</option>
+                                        <option value="ro">罗马尼亚语 (ro)</option>
+                                        <option value="da">丹麦语 (da)</option>
+                                        <option value="fi">芬兰语 (fi)</option>
+                                        <option value="sv">瑞典语 (sv)</option>
+                                        <option value="no">挪威语 (no)</option>
+                                        <option value="hu">匈牙利语 (hu)</option>
+                                        <option value="he">希伯来语 (he)</option>
+                                        <option value="fa">波斯语 (fa)</option>
+                                        <option value="bn">孟加拉语 (bn)</option>
+                                        <option value="ta">泰米尔语 (ta)</option>
+                                        <option value="te">泰卢固语 (te)</option>
+                                        <option value="mr">马拉地语 (mr)</option>
+                                        <option value="gu">古吉拉特语 (gu)</option>
+                                        <option value="kn">卡纳达语 (kn)</option>
+                                        <option value="ml">马拉雅拉姆语 (ml)</option>
+                                        <option value="pa">旁遮普语 (pa)</option>
+                                        <option value="ur">乌尔都语 (ur)</option>
+                                        <option value="af">南非荷兰语 (af)</option>
+                                        <option value="sq">阿尔巴尼亚语 (sq)</option>
+                                        <option value="az">阿塞拜疆语 (az)</option>
+                                        <option value="eu">巴斯克语 (eu)</option>
+                                        <option value="be">白俄罗斯语 (be)</option>
+                                        <option value="bs">波斯尼亚语 (bs)</option>
+                                        <option value="bg">保加利亚语 (bg)</option>
+                                        <option value="ca">加泰罗尼亚语 (ca)</option>
+                                        <option value="hr">克罗地亚语 (hr)</option>
+                                        <option value="et">爱沙尼亚语 (et)</option>
+                                        <option value="gl">加利西亚语 (gl)</option>
+                                        <option value="kk">哈萨克语 (kk)</option>
+                                        <option value="lv">拉脱维亚语 (lv)</option>
+                                        <option value="lt">立陶宛语 (lt)</option>
+                                        <option value="mk">马其顿语 (mk)</option>
+                                        <option value="ms">马来语 (ms)</option>
+                                        <option value="sr">塞尔维亚语 (sr)</option>
+                                        <option value="sk">斯洛伐克语 (sk)</option>
+                                        <option value="sl">斯洛文尼亚语 (sl)</option>
+                                        <option value="sw">斯瓦希里语 (sw)</option>
+                                        <option value="tl">他加禄语 (tl)</option>
+                                        <option value="cy">威尔士语 (cy)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="audio-source-section">
+                        <h4>🎤 音频来源</h4>
+                        <div class="translation-mode">
+                            <label class="radio-option">
+                                <input type="radio" name="audioSource" value="microphone" checked>
+                                <span class="radio-label">🎤 麦克风录音</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="audioSource" value="file">
+                                <span class="radio-label">📁 上传文件</span>
+                            </label>
+                        </div>
+                        <div id="fileUploadSection" style="display: none; margin-top: 15px;">
+                            <input type="file" id="wsFile" accept="audio/*,video/*" style="padding: 10px; background: white; border-radius: 8px; width: 100%;" disabled>
+                        </div>
+                    </div>
+
+                    <button id="wsStartBtn" class="btn btn-primary">🎤 开始录音</button>
+                    <button id="wsStopBtn" class="btn btn-danger" style="display: none;">⏹️ 停止录音</button>
+
+                    <div id="wsStatus" style="display: none; padding: 15px; border-radius: 8px; margin-top: 15px;"></div>
+                </div>
+
+                <div class="transcript-box">
+                    <h3>实时转录结果</h3>
+                    <div id="wsResult" style="background: white; padding: 20px; border-radius: 8px; min-height: 200px; white-space: pre-wrap; font-family: 'Arial', sans-serif; line-height: 1.8; border: 2px solid #dee2e6;"></div>
+                </div>
+
+                <div class="log-box">
+                    <h3>📋 处理日志 <button id="wsClearLog" class="btn-small">清空</button></h3>
+                    <div id="wsLog"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=20251031-1631"></script>
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab + '-tab').classList.add('active');
+        }
+
+        function wsLog(msg, type = 'info') {
+            const logDiv = document.getElementById('wsLog');
+            const time = new Date().toLocaleTimeString();
+            const colors = { info: '#4CAF50', error: '#f44336', warning: '#ff9800' };
+            logDiv.innerHTML += `<div style="color: ${colors[type]};">[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function wsUpdateStatus(msg, type = 'info') {
+            const statusDiv = document.getElementById('wsStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = msg;
+            const colors = { info: '#2196F3', success: '#4CAF50', error: '#f44336' };
+            statusDiv.style.background = colors[type] + '20';
+            statusDiv.style.color = colors[type];
+        }
+
+        document.getElementById('wsClearLog').onclick = () => document.getElementById('wsLog').innerHTML = '';
+
+        document.getElementById('wsStartBtn').onclick = async () => {
+            const keysValue = document.getElementById('apiKey').value.trim();
+            const fileInput = document.getElementById('wsFile');
+            
+            if (!keysValue) { alert('请输入 API Keys'); return; }
+            if (!fileInput.files[0]) { alert('请选择文件'); return; }
+
+            const keys = keysValue.split(',').map(k => k.trim()).filter(k => k);
+            const apiKey = keys[Math.floor(Math.random() * keys.length)];
+            const file = fileInput.files[0];
+
+            wsLog(`📁 ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`);
+            wsLog(`🔑 Key: ${apiKey.substring(0, 10)}...`);
+
+            document.getElementById('wsStartBtn').disabled = true;
+            document.getElementById('wsResult').textContent = '';
+            wsUpdateStatus('连接中...', 'info');
+
+            try {
+                const ws = new WebSocket('ws://localhost:8001/ws/transcribe');
+                let text = '';
+
+                ws.onopen = async () => {
+                    wsLog('✅ 已连接');
+                    ws.send(JSON.stringify({
+                        api_key: apiKey,
+                        model: 'stt-rt-v3',
+                        audio_format: 'auto',
+                        enable_speaker_diarization: document.getElementById('wsDiarization').checked
+                    }));
+
+                    wsUpdateStatus('发送音频...', 'info');
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const buf = e.target.result;
+                        for (let i = 0; i < buf.byteLength; i += 3840) {
+                            if (ws.readyState === 1) {
+                                ws.send(buf.slice(i, Math.min(i + 3840, buf.byteLength)));
+                                await new Promise(r => setTimeout(r, 10));
+                            }
+                        }
+                        ws.send(new ArrayBuffer(0));
+                        wsLog('✅ 发送完成');
+                        wsUpdateStatus('转录中...', 'info');
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+
+                ws.onmessage = (e) => {
+                    const r = JSON.parse(e.data);
+                    if (r.error || r.error_code) {
+                        const err = r.error_message || r.error || `错误: ${r.error_code}`;
+                        wsLog(`❌ ${err}`, 'error');
+                        wsUpdateStatus(err, 'error');
+                        ws.close();
+                        document.getElementById('wsStartBtn').disabled = false;
+                        return;
+                    }
+                    if (r.tokens) r.tokens.forEach(t => { if (t.is_final) text += t.text; });
+                    document.getElementById('wsResult').textContent = text;
+                    if (r.finished) {
+                        wsLog('✅ 完成');
+                        wsUpdateStatus('完成！', 'success');
+                        ws.close();
+                        document.getElementById('wsStartBtn').disabled = false;
+                    }
+                };
+
+                ws.onerror = () => {
+                    wsLog('❌ 连接错误', 'error');
+                    wsUpdateStatus('错误', 'error');
+                    document.getElementById('wsStartBtn').disabled = false;
+                };
+            } catch (error) {
+                wsLog(`❌ ${error.message}`, 'error');
+                document.getElementById('wsStartBtn').disabled = false;
+            }
+        };
+    </script>
 </body>
 </html>

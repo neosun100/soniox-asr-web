@@ -104,6 +104,7 @@ python3 -m http.server 8000
 | 服务 | 地址 | 说明 |
 |------|------|------|
 | 主界面 | http://localhost:8000 | 文件上传转文字 |
+| WebSocket 测试 | http://localhost:8000/websocket-test.html | 实时语音转录测试 |
 | API 测试 | http://localhost:8000/api-test.html | 可视化 API 测试 |
 | API 文档 | http://localhost:8001/docs | Swagger 交互式文档 |
 | 清除存储 | http://localhost:8000/clear-storage.html | 清除保存的 API Key |
@@ -146,10 +147,10 @@ KEY1,KEY2,KEY3
 
 #### 智能处理逻辑
 ```
-文件时长 ≤ 60 分钟
+文件时长 ≤ 300 分钟（5 小时）
   → 直接上传处理
 
-文件时长 > 60 分钟
+文件时长 > 300 分钟
   → 自动均分切片
   → 并行处理所有片段
   → 合并转录结果
@@ -163,13 +164,15 @@ KEY1,KEY2,KEY3
 
 ### 3. 使用 API 服务
 
-#### 端点信息
+#### 文件转录 API
+
+**端点信息**
 
 ```
 POST http://localhost:8001/transcribe
 ```
 
-#### 请求参数
+**请求参数**
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
@@ -255,6 +258,191 @@ fetch('http://localhost:8001/transcribe', {
       {"chunk": 1, "duration": 22.5},
       {"chunk": 2, "duration": 21.8}
     ]
+  }
+}
+```
+
+### 5. 使用 WebSocket 实时转录
+
+#### WebSocket 端点
+
+```
+ws://localhost:8001/ws/transcribe
+```
+
+#### 连接流程
+
+1. **建立 WebSocket 连接**
+2. **发送配置消息**（JSON 格式）
+3. **发送音频数据**（二进制格式）
+4. **接收实时转录结果**（JSON 格式）
+5. **发送空帧结束**
+
+#### 配置参数
+
+```json
+{
+  "api_key": "YOUR_API_KEY",
+  "model": "stt-rt-preview",
+  "audio_format": "auto",
+  "enable_speaker_diarization": false,
+  "enable_endpoint_detection": false,
+  "enable_language_identification": true,
+  "language_hints": ["en", "zh"],
+  "translation": {
+    "type": "one_way",
+    "target_language": "zh"
+  }
+}
+```
+
+#### Python 示例
+
+```python
+import asyncio
+import websockets
+import json
+
+async def transcribe_realtime():
+    uri = "ws://localhost:8001/ws/transcribe"
+    
+    async with websockets.connect(uri) as websocket:
+        # 1. 发送配置
+        config = {
+            "api_key": "YOUR_API_KEY",
+            "model": "stt-rt-preview",
+            "audio_format": "pcm_s16le",
+            "sample_rate": 16000,
+            "num_channels": 1,
+            "enable_speaker_diarization": True
+        }
+        await websocket.send(json.dumps(config))
+        
+        # 2. 发送音频数据（示例）
+        with open("audio.raw", "rb") as f:
+            while chunk := f.read(4096):
+                await websocket.send(chunk)
+        
+        # 3. 发送空帧表示结束
+        await websocket.send(b"")
+        
+        # 4. 接收转录结果
+        async for message in websocket:
+            result = json.loads(message)
+            
+            if result.get("error"):
+                print(f"错误: {result['error']}")
+                break
+            
+            # 处理 tokens
+            for token in result.get("tokens", []):
+                if token["is_final"]:
+                    print(token["text"], end="", flush=True)
+            
+            # 检查是否结束
+            if result.get("finished"):
+                print("\n转录完成")
+                break
+
+asyncio.run(transcribe_realtime())
+```
+
+#### JavaScript 示例
+
+```javascript
+const ws = new WebSocket('ws://localhost:8001/ws/transcribe');
+
+ws.onopen = async () => {
+    // 1. 发送配置
+    const config = {
+        api_key: 'YOUR_API_KEY',
+        model: 'stt-rt-preview',
+        audio_format: 'auto',
+        enable_speaker_diarization: true
+    };
+    ws.send(JSON.stringify(config));
+    
+    // 2. 获取麦克风并发送音频
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mediaRecorder = new MediaRecorder(stream);
+    
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+            event.data.arrayBuffer().then(buffer => {
+                ws.send(buffer);
+            });
+        }
+    };
+    
+    mediaRecorder.start(100); // 每 100ms 发送一次
+};
+
+ws.onmessage = (event) => {
+    const result = JSON.parse(event.data);
+    
+    // 3. 处理转录结果
+    if (result.tokens) {
+        result.tokens.forEach(token => {
+            if (token.is_final) {
+                console.log(token.text);
+            }
+        });
+    }
+    
+    if (result.finished) {
+        console.log('转录完成');
+        ws.close();
+    }
+};
+```
+
+#### 响应格式
+
+```json
+{
+  "tokens": [
+    {
+      "text": "Hello",
+      "start_ms": 600,
+      "end_ms": 760,
+      "confidence": 0.97,
+      "is_final": true,
+      "speaker": "1",
+      "language": "en"
+    }
+  ],
+  "final_audio_proc_ms": 760,
+  "total_audio_proc_ms": 880
+}
+```
+
+#### 特殊 Token
+
+- **`<end>` token**：启用端点检测时，表示说话结束
+- **`is_final: false`**：临时结果，可能会改变
+- **`is_final: true`**：最终结果，不会再改变
+
+#### 实时翻译
+
+**单向翻译**（所有语言翻译成目标语言）：
+
+```json
+{
+  "translation": {
+    "type": "one_way",
+    "target_language": "zh"
+  }
+}
+```
+
+**双向翻译**（两种语言互译）：
+
+```json
+{
+  "translation": {
+    "type": "two_way",
+    "language_a": "en",
+    "language_b": "zh"
   }
 }
 ```
@@ -361,8 +549,8 @@ aac, aiff, amr, asf, flac, mp3, ogg, wav, webm, m4a, mp4, wma, opus
 
 | 限制项 | 值 | 说明 |
 |--------|-----|------|
-| 单文件时长 | 60 分钟 | Soniox API 限制，系统自动切分 |
-| 文件大小 | 500 MB | Soniox API 限制 |
+| 单文件时长 | 300 分钟 | Soniox API 限制，系统自动切分 |
+| 文件大小 | 无限制 | 根据时长自动处理 |
 | 批量上传 | 10 个文件 | 前端限制，可修改 |
 | 并行请求 | 无限制 | 注意 API 配额和限流 |
 

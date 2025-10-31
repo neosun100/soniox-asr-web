@@ -23,15 +23,18 @@ wheels/
 .installed.cfg
 *.egg
 
-# Logs
+# Logs (may contain API keys)
 *.log
 server.log
 frontend.log
+logs/
 
 # Backup files
 *.backup
 *.backup2
 *.working
+*.bak
+*.bak2
 
 # IDE
 .vscode/
@@ -47,6 +50,23 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Test and diagnostic files
+test_*.py
+diagnose.py
+TEST_RESULTS.md
+
+# Documentation drafts
+公众号文章.md
+API.md
+DEPLOYMENT.md
+
+# Old/unused HTML files
+api-test.html
+fast-transcribe.html
+realtime-test.html
+transcribe.html
+websocket-test.html
 
 # Audio files (optional - uncomment if you don't want to commit test files)
 # *.mp3

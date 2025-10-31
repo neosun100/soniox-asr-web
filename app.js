@@ -17,6 +17,45 @@ window.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(API_KEY_STORAGE_KEY, apiKeys);
         }
     });
+    
+    // 音频来源切换
+    document.querySelectorAll('input[name="audioSource"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const fileSection = document.getElementById('fileUploadSection');
+            const startBtn = document.getElementById('wsStartBtn');
+            
+            if (e.target.value === 'file') {
+                fileSection.style.display = 'block';
+                startBtn.innerHTML = '🚀 开始识别';
+            } else {
+                fileSection.style.display = 'none';
+                startBtn.innerHTML = '🎤 开始录音';
+            }
+        });
+    });
+    
+    // 翻译类型切换
+    document.querySelectorAll('input[name="translationType"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            document.getElementById('oneWayOptions').style.display = 'none';
+            document.getElementById('twoWayOptions').style.display = 'none';
+            
+            if (e.target.value === 'one_way') {
+                document.getElementById('oneWayOptions').style.display = 'block';
+            } else if (e.target.value === 'two_way') {
+                document.getElementById('twoWayOptions').style.display = 'block';
+            }
+        });
+    });
+    
+    // 调试：监听 wsFile 的点击
+    const wsFileInput = document.getElementById('wsFile');
+    if (wsFileInput) {
+        wsFileInput.addEventListener('click', (e) => {
+            console.log('wsFile 被点击了！');
+            console.trace('调用堆栈:');
+        });
+    }
 });
 
 // 日志系统
@@ -87,7 +126,7 @@ function getApiKeys() {
 let selectedFiles = [];
 let transcriptionResults = {};
 let currentResultIndex = 0;
-const MAX_FILES = 10;
+const MAX_FILES = 100;
 
 document.getElementById('selectFilesBtn').addEventListener('click', () => {
     document.getElementById('fileInput').click();
@@ -227,7 +266,9 @@ async function startBatchTranscription() {
                 Logger.warning(`${file.name}: 无法检测时长，直接上传`);
             }
 
-            const MAX_DURATION = 60 * 60;
+            const MAX_DURATION = 300 * 60; // 5 hours in seconds (18000 seconds)
+            
+            Logger.debug(`${file.name}: 时长=${duration}秒, 阈值=${MAX_DURATION}秒, 需要切分=${duration > MAX_DURATION}`);
             
             if (duration === 0 || duration <= MAX_DURATION) {
                 allTasks.push({
@@ -260,58 +301,66 @@ async function startBatchTranscription() {
             }
         }
 
-        // 第二步：并行处理所有任务
+        // 第二步：受控并行处理所有任务
         const totalTasks = allTasks.length;
+        const concurrencyLimit = parseInt(document.getElementById('concurrencyLimit').value) || 5;
         document.getElementById('totalFiles').textContent = totalTasks;
-        document.getElementById('concurrency').textContent = totalTasks;
-        Logger.info(`阶段 2/3: 并行处理 ${totalTasks} 个任务...`);
+        Logger.info(`阶段 2/3: 并行处理 ${totalTasks} 个任务（并行度: ${concurrencyLimit}）...`);
 
         let completedTasks = 0;
+        const results = [];
         
-        const taskPromises = allTasks.map(async (task) => {
-            const statusEl = document.getElementById(`status-${task.fileIndex}`);
-            const fileName = selectedFiles[task.fileIndex].name;
+        // 受控并行执行
+        for (let i = 0; i < allTasks.length; i += concurrencyLimit) {
+            const batch = allTasks.slice(i, i + concurrencyLimit);
+            document.getElementById('concurrency').textContent = batch.length;
             
-            if (task.isChunk) {
-                statusEl.textContent = `处理分段 ${task.chunkIndex}/${task.totalChunks}...`;
-                Logger.debug(`${fileName} - 分段 ${task.chunkIndex}/${task.totalChunks}: 开始处理`);
-            } else {
-                statusEl.textContent = '处理中...';
-                Logger.debug(`${fileName}: 开始处理`);
-            }
-            
-            try {
-                const taskStartTime = Date.now();
-                const apiKeys = getApiKeys();
-                const text = await uploadSingleFileWithRetry(apiKeys, task.file);
-                const taskEndTime = Date.now();
-                const taskDuration = ((taskEndTime - taskStartTime) / 1000).toFixed(2);
-                
-                completedTasks++;
-                updateProgress(completedTasks, totalTasks);
+            const batchPromises = batch.map(async (task) => {
+                const statusEl = document.getElementById(`status-${task.fileIndex}`);
+                const fileName = selectedFiles[task.fileIndex].name;
                 
                 if (task.isChunk) {
-                    Logger.success(`${fileName} - 分段 ${task.chunkIndex}/${task.totalChunks}: 完成 (${taskDuration}秒)`);
+                    statusEl.textContent = `处理分段 ${task.chunkIndex}/${task.totalChunks}...`;
+                    Logger.debug(`${fileName} - 分段 ${task.chunkIndex}/${task.totalChunks}: 开始处理`);
                 } else {
-                    Logger.success(`${fileName}: 完成 (${taskDuration}秒)`);
+                    statusEl.textContent = '处理中...';
+                    Logger.debug(`${fileName}: 开始处理`);
                 }
                 
-                return { taskIndex: allTasks.indexOf(task), text: text, success: true, duration: taskDuration };
-            } catch (error) {
-                completedTasks++;
-                updateProgress(completedTasks, totalTasks);
-                
-                if (task.isChunk) {
-                    Logger.error(`${fileName} - 分段 ${task.chunkIndex}/${task.totalChunks}: ${error.message}`);
-                } else {
-                    Logger.error(`${fileName}: ${error.message}`);
+                try {
+                    const taskStartTime = Date.now();
+                    const apiKeys = getApiKeys();
+                    const text = await uploadSingleFileWithRetry(apiKeys, task.file);
+                    const taskEndTime = Date.now();
+                    const taskDuration = ((taskEndTime - taskStartTime) / 1000).toFixed(2);
+                    
+                    completedTasks++;
+                    updateProgress(completedTasks, totalTasks);
+                    
+                    if (task.isChunk) {
+                        Logger.success(`${fileName} - 分段 ${task.chunkIndex}/${task.totalChunks}: 完成 (${taskDuration}秒)`);
+                    } else {
+                        Logger.success(`${fileName}: 完成 (${taskDuration}秒)`);
+                    }
+                    
+                    return { taskIndex: allTasks.indexOf(task), text: text, success: true, duration: taskDuration };
+                } catch (error) {
+                    completedTasks++;
+                    updateProgress(completedTasks, totalTasks);
+                    
+                    if (task.isChunk) {
+                        Logger.error(`${fileName} - 分段 ${task.chunkIndex}/${task.totalChunks}: ${error.message}`);
+                    } else {
+                        Logger.error(`${fileName}: ${error.message}`);
+                    }
+                    
+                    return { taskIndex: allTasks.indexOf(task), error: error.message, success: false };
                 }
-                
-                return { taskIndex: allTasks.indexOf(task), error: error.message, success: false };
-            }
-        });
-
-        const results = await Promise.all(taskPromises);
+            });
+            
+            const batchResults = await Promise.all(batchPromises);
+            results.push(...batchResults);
+        }
         Logger.info('阶段 3/3: 合并结果...');
         
         // 计算总处理时长
@@ -481,7 +530,8 @@ function audioBufferToWav(buffer) {
 
 // 上传单个文件或分段（带重试）
 async function uploadSingleFileWithRetry(apiKeys, file, maxRetries = 3) {
-    const availableKeys = [...apiKeys];
+    // 随机打乱 Key 顺序，实现负载均衡
+    const availableKeys = [...apiKeys].sort(() => Math.random() - 0.5);
     let lastError = null;
     
     for (let attempt = 0; attempt < maxRetries && availableKeys.length > 0; attempt++) {
@@ -522,11 +572,31 @@ async function uploadSingleFile(apiKey, file) {
 
     const uploadData = await uploadResponse.json();
 
+    // 获取模型选择
+    const modelSelect = document.getElementById('restModel');
+    const model = modelSelect ? modelSelect.value : 'stt-async-v3';
+
+    // 获取语言提示
+    const languageSelect = document.getElementById('restLanguage');
+    const languageHints = languageSelect ? 
+        Array.from(languageSelect.selectedOptions).map(opt => opt.value).filter(val => val) : 
+        null;
+
+    // 获取语言识别选项
+    const languageIdCheckbox = document.getElementById('restLanguageId');
+    const enableLanguageId = languageIdCheckbox ? languageIdCheckbox.checked : false;
+
     const transcriptionConfig = {
         file_id: uploadData.id,
-        model: 'stt-async-preview',
-        enable_speaker_diarization: document.getElementById('uploadEnableDiarization').checked
+        model: model,
+        enable_speaker_diarization: document.getElementById('uploadEnableDiarization').checked,
+        enable_language_identification: enableLanguageId
     };
+
+    // 添加语言提示（如果有选择）
+    if (languageHints && languageHints.length > 0) {
+        transcriptionConfig.language_hints = languageHints;
+    }
 
     const transcriptionResponse = await fetch('https://api.soniox.com/v1/transcriptions', {
         method: 'POST',
@@ -547,10 +617,12 @@ async function uploadSingleFile(apiKey, file) {
 }
 
 async function waitForTranscription(apiKey, transcriptionId) {
-    const maxAttempts = 60;
     let attempts = 0;
 
-    while (attempts < maxAttempts) {
+    Logger.info(`⏳ 等待转录完成 (ID: ${transcriptionId.substring(0, 8)}...)`);
+    Logger.warning(`⚠️  Soniox 异步 API 处理较慢，请耐心等待...`);
+
+    while (true) { // 无限等待
         const response = await fetch(`https://api.soniox.com/v1/transcriptions/${transcriptionId}`, {
             headers: { 'Authorization': `Bearer ${apiKey}` }
         });
@@ -558,8 +630,14 @@ async function waitForTranscription(apiKey, transcriptionId) {
         if (!response.ok) throw new Error('获取状态失败');
 
         const data = await response.json();
+        
+        // 每 10 次显示一次进度
+        if (attempts % 10 === 0 || data.status !== 'queued') {
+            Logger.debug(`📊 状态检查 ${attempts + 1}: ${data.status} (已等待 ${attempts * 2}秒)`);
+        }
 
         if (data.status === 'completed') {
+            Logger.success('✅ 转录完成，获取结果...');
             const textResponse = await fetch(`https://api.soniox.com/v1/transcriptions/${transcriptionId}/transcript`, {
                 headers: { 'Authorization': `Bearer ${apiKey}` }
             });
@@ -592,8 +670,6 @@ async function waitForTranscription(apiKey, transcriptionId) {
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 2000));
     }
-
-    throw new Error('转录超时');
 }
 
 function displayResults() {
@@ -661,4 +737,343 @@ function downloadAllTranscripts() {
         URL.revokeObjectURL(url);
     });
     Logger.info(`批量下载: ${Object.keys(transcriptionResults).length} 个文件`);
+}
+
+
+// ==================== WebSocket 实时识别功能 ====================
+
+// WebSocket 日志
+function wsLog(message, level = 'info') {
+    const logContent = document.getElementById('wsLog');
+    const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    const entry = document.createElement('div');
+    entry.className = `log-entry log-${level}`;
+    entry.textContent = `[${timestamp}] ${message}`;
+    logContent.appendChild(entry);
+    logContent.scrollTop = logContent.scrollHeight;
+}
+
+document.getElementById('wsClearLog').addEventListener('click', () => {
+    document.getElementById('wsLog').innerHTML = '';
+    wsLog('日志已清空');
+});
+
+// WebSocket 实时转录
+let mediaRecorder = null;
+let audioStream = null;
+
+let isProcessing = false;
+
+document.getElementById('wsStartBtn').addEventListener('click', async () => {
+    if (isProcessing) {
+        console.log('正在处理中，忽略点击');
+        return;
+    }
+    
+    isProcessing = true;
+    const audioSource = document.querySelector('input[name="audioSource"]:checked');
+    console.log('点击开始按钮');
+    console.log('选中的音频来源:', audioSource ? audioSource.value : 'null');
+    
+    if (!audioSource) {
+        alert('无法获取音频来源选项');
+        isProcessing = false;
+        return;
+    }
+    
+    try {
+        if (audioSource.value === 'microphone') {
+            console.log('执行麦克风录音');
+            await startMicrophoneRecording();
+        } else {
+            console.log('执行文件上传');
+            await startFileTranscription();
+        }
+    } finally {
+        isProcessing = false;
+    }
+});
+
+document.getElementById('wsStopBtn').addEventListener('click', () => {
+    stopRecording();
+});
+
+async function startMicrophoneRecording() {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        alert('请输入 API Key');
+        return;
+    }
+    
+    try {
+        wsLog('🎤 请求麦克风权限...');
+        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        wsLog('✅ 麦克风权限已获取');
+        
+        document.getElementById('wsStartBtn').style.display = 'none';
+        document.getElementById('wsStopBtn').style.display = 'inline-block';
+        document.getElementById('wsResult').innerHTML = '';
+        
+        await connectWebSocket(apiKey, audioStream);
+        
+    } catch (error) {
+        wsLog(`❌ 麦克风错误: ${error.message}`, 'error');
+        alert('无法访问麦克风，请检查浏览器权限');
+    }
+}
+
+async function startFileTranscription() {
+    console.log('========== startFileTranscription 被调用 ==========');
+    console.trace('调用堆栈:');
+    const fileInput = document.getElementById('wsFile');
+    console.log('fileInput:', fileInput);
+    const file = fileInput ? fileInput.files[0] : null;
+    console.log('file:', file);
+    
+    if (!file) {
+        console.log('========== 没有选择文件，显示提示 ==========');
+        alert('请选择音频文件');
+        return;
+    }
+    
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        alert('请输入 API Key');
+        return;
+    }
+    
+    wsLog(`📁 ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`);
+    document.getElementById('wsStartBtn').disabled = true;
+    document.getElementById('wsResult').innerHTML = '';
+    
+    await connectWebSocket(apiKey, null, file);
+}
+
+async function connectWebSocket(apiKey, stream, file) {
+    const enableDiarization = document.getElementById('wsDiarization').checked;
+    const enableLanguageId = document.getElementById('wsLanguageId').checked;
+    const translationType = document.querySelector('input[name="translationType"]:checked').value;
+    
+    wsLog(`🔑 Key: ${apiKey.substring(0, 10)}...`);
+    
+    document.getElementById('wsStartBtn').disabled = true;
+    document.getElementById('wsResult').textContent = '';
+    
+    try {
+        const ws = new WebSocket('ws://localhost:8001/ws/transcribe');
+        
+        ws.onopen = async () => {
+            wsLog('✅ WebSocket 连接成功');
+            
+            // 构建配置
+            const config = {
+                api_key: apiKey,
+                model: 'stt-rt-v3',
+                audio_format: 'auto',
+                enable_speaker_diarization: enableDiarization,
+                enable_language_identification: enableLanguageId,
+                enable_endpoint_detection: true
+            };
+            
+            // 添加翻译配置
+            if (translationType === 'one_way') {
+                config.translation = {
+                    type: 'one_way',
+                    target_language: document.getElementById('targetLang').value
+                };
+                wsLog(`🌐 单向翻译 → ${document.getElementById('targetLang').value}`);
+            } else if (translationType === 'two_way') {
+                config.translation = {
+                    type: 'two_way',
+                    language_a: document.getElementById('langA').value,
+                    language_b: document.getElementById('langB').value
+                };
+                wsLog(`🌐 双向翻译: ${document.getElementById('langA').value} ↔ ${document.getElementById('langB').value}`);
+            }
+            
+            wsLog('📤 发送配置...');
+            ws.send(JSON.stringify(config));
+            
+            // 发送音频
+            if (stream) {
+                // 麦克风录音
+                wsLog('🎤 开始录音...');
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+                        const arrayBuffer = await event.data.arrayBuffer();
+                        ws.send(arrayBuffer);
+                    }
+                };
+                
+                mediaRecorder.start(100); // 每 100ms 发送一次
+                
+            } else if (file) {
+                // 文件上传
+                wsLog('📤 开始发送音频数据...');
+                const arrayBuffer = await file.arrayBuffer();
+                const chunkSize = 3840;
+                let offset = 0;
+                
+                while (offset < arrayBuffer.byteLength) {
+                    const chunk = arrayBuffer.slice(offset, offset + chunkSize);
+                    ws.send(chunk);
+                    offset += chunkSize;
+                    await new Promise(r => setTimeout(r, 10));
+                }
+                
+                ws.send(new ArrayBuffer(0));
+                wsLog('✅ 音频发送完成，等待结果...');
+            }
+        };
+        
+        let finalTokens = [];
+        
+        ws.onmessage = (event) => {
+            console.log('收到 WebSocket 消息:', event.data.substring(0, 200));
+            const response = JSON.parse(event.data);
+            
+            if (response.error || response.error_code) {
+                const errorMsg = response.error || response.error_message || '未知错误';
+                
+                // 如果是超时错误，只记录日志，不关闭连接
+                if (response.error_code === 408) {
+                    wsLog(`⚠️ 警告: ${errorMsg}（翻译处理较慢，继续等待...）`, 'warning');
+                    console.warn('超时警告:', response);
+                    return; // 不关闭连接，继续等待
+                }
+                
+                // 其他错误才关闭连接
+                wsLog(`❌ 错误: ${errorMsg}`, 'error');
+                console.error('WebSocket 错误:', response);
+                ws.close();
+                return;
+            }
+            
+            if (response.tokens) {
+                console.log('收到 tokens:', response.tokens.length);
+                const nonFinalTokens = [];
+                
+                response.tokens.forEach(token => {
+                    if (token.is_final) {
+                        finalTokens.push(token);
+                    } else {
+                        nonFinalTokens.push(token);
+                    }
+                });
+                
+                // 渲染结果
+                const html = renderTokens(finalTokens, nonFinalTokens);
+                document.getElementById('wsResult').innerHTML = html;
+                console.log('已更新显示，HTML 长度:', html.length);
+            }
+            
+            if (response.finished) {
+                wsLog('✅ 转录完成！', 'success');
+                console.log('转录完成');
+                ws.close();
+            }
+        };
+        
+        ws.onerror = (error) => {
+            wsLog(`❌ WebSocket 错误`, 'error');
+            console.error(error);
+        };
+        
+        ws.onclose = () => {
+            wsLog('🔌 连接已关闭');
+            stopRecording();
+        };
+        
+    } catch (error) {
+        wsLog(`❌ 错误: ${error.message}`, 'error');
+        stopRecording();
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
+    }
+    document.getElementById('wsStartBtn').style.display = 'inline-block';
+    document.getElementById('wsStartBtn').disabled = false;
+    document.getElementById('wsStopBtn').style.display = 'none';
+    wsLog('⏹️ 录音已停止');
+}
+
+// 渲染 tokens 为可读 HTML
+function renderTokens(finalTokens, nonFinalTokens) {
+    const htmlParts = [];
+    let currentSpeaker = null;
+    let currentLanguage = null;
+    
+    const allTokens = [...finalTokens, ...nonFinalTokens];
+    
+    // 语言颜色映射
+    const languageColors = {
+        'zh': '#2563eb',  // 蓝色 - 中文
+        'en': '#059669',  // 绿色 - 英语
+        'es': '#dc2626',  // 红色 - 西班牙语
+        'fr': '#7c3aed',  // 紫色 - 法语
+        'de': '#ea580c',  // 橙色 - 德语
+        'ja': '#db2777',  // 粉色 - 日语
+        'ko': '#0891b2',  // 青色 - 韩语
+        'ar': '#65a30d',  // 黄绿 - 阿拉伯语
+        'ru': '#be123c',  // 深红 - 俄语
+        'pt': '#0284c7',  // 天蓝 - 葡萄牙语
+        'default': '#1f2937'  // 深灰 - 默认
+    };
+    
+    for (const token of allTokens) {
+        const text = token.text || '';
+        const speaker = token.speaker;
+        const language = token.language;
+        const isTranslation = token.translation_status === 'translation';
+        const isFinal = token.is_final;
+        
+        // 说话人改变
+        if (speaker !== undefined && speaker !== currentSpeaker) {
+            if (currentSpeaker !== null) {
+                htmlParts.push('<br><br>');
+            }
+            currentSpeaker = speaker;
+            currentLanguage = null;
+            htmlParts.push(`<div style="font-weight: bold; color: #1f2937; margin-top: 10px;">👤 说话人 ${currentSpeaker}:</div>`);
+        }
+        
+        // 语言改变
+        if (language !== undefined && language !== currentLanguage) {
+            currentLanguage = language;
+            const color = languageColors[language] || languageColors['default'];
+            const prefix = isTranslation ? '🌐 [翻译] ' : '';
+            const langLabel = `${prefix}[${language.toUpperCase()}]`;
+            htmlParts.push(`<span style="color: ${color}; font-weight: 600; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; margin: 0 4px;">${langLabel}</span> `);
+        }
+        
+        // 检查是否是 <end> token
+        if (text.trim() === '<end>') {
+            htmlParts.push('<br>');
+            continue;
+        }
+        
+        // 文本内容
+        const color = languageColors[currentLanguage] || languageColors['default'];
+        const opacity = isFinal ? '1' : '0.6';
+        const fontWeight = isFinal ? '500' : '400';
+        htmlParts.push(`<span style="color: ${color}; opacity: ${opacity}; font-weight: ${fontWeight};">${escapeHtml(text)}</span>`);
+    }
+    
+    return htmlParts.join('');
+}
+
+// HTML 转义
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }

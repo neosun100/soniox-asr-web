@@ -117,6 +117,7 @@ h1 {
     display: flex;
     flex-wrap: wrap;
     gap: 20px;
+    align-items: center;
     margin: 20px 0;
     padding: 20px;
     background: #f8f9fa;
@@ -166,6 +167,39 @@ h1 {
 .label-text {
     font-weight: 600;
     color: #333;
+}
+
+.concurrency-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.concurrency-control label {
+    font-weight: 600;
+    color: #333;
+}
+
+.concurrency-control input[type="number"] {
+    width: 60px;
+    padding: 8px 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    background: white;
+    color: #333;
+}
+
+.concurrency-control input[type="number"]:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.concurrency-control .hint-text {
+    color: #6c757d;
+    font-size: 13px;
 }
 
 #translationOptions {
@@ -574,3 +608,119 @@ input[type="file"]:hover {
 .main-content {
     padding: 30px;
 }
+
+
+/* WebSocket 翻译设置 */
+.translation-section, .audio-source-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.translation-section h4, .audio-source-section h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #333 !important;
+    font-weight: 600;
+}
+
+.translation-mode {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.radio-option {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 10px 20px;
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.radio-option:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.radio-option input[type="radio"] {
+    display: none;
+}
+
+.radio-option .radio-label {
+    color: #333;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.radio-option input[type="radio"]:checked + .radio-label {
+    color: #4CAF50;
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+    border-color: #4CAF50;
+    background: #f0f9f4;
+}
+
+.translation-options {
+    margin-top: 15px;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+}
+
+.select-label {
+    color: #333;
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.lang-select {
+    padding: 10px 15px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    min-width: 200px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.lang-select:hover {
+    border-color: #667eea;
+}
+
+.lang-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.two-way-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.lang-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.arrow {
+    font-size: 24px;
+    color: #667eea;
+    font-weight: bold;
+}
+
