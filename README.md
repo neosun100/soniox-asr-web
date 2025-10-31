@@ -39,6 +39,7 @@ A complete speech recognition web application based on Soniox API, supporting fi
 ### 📁 File Transcription (REST API)
 
 - ✅ **Multi-format Support**: mp3, wav, m4a, flac, ogg, and 60+ audio formats
+- ✅ **Video Support**: Automatically extract audio from video files (mp4, webm, mov, avi, etc.)
 - ✅ **Smart Splitting**: Automatically handles audio files exceeding 5 hours
 - ✅ **Batch Processing**: Upload up to 100 files simultaneously with configurable concurrency
 - ✅ **Speaker Diarization**: Automatically identifies different speakers (up to 15 people)
