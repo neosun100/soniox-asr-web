@@ -16,7 +16,7 @@
 
 ## 📸 界面预览
 
-![Soniox ASR 主界面](screenshot.png?v=20251031)
+![Soniox ASR 主界面](screenshot-20251031.png)
 
 **三大核心功能**：
 - **文件转录**：批量上传音频文件，自动切分长音频，并行处理
