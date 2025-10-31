@@ -265,8 +265,8 @@ async function startBatchTranscription() {
                     statusEl.textContent = '提取音频...';
                     const audioBlob = await extractAudioFromVideo(file);
                     // 创建新的File对象，保留原文件名但改为音频扩展名
-                    const audioFileName = file.name.replace(/\.[^.]+$/, '.webm');
-                    processFile = new File([audioBlob], audioFileName, { type: 'audio/webm' });
+                    const audioFileName = file.name.replace(/\.[^.]+$/, '.wav');
+                    processFile = new File([audioBlob], audioFileName, { type: 'audio/wav' });
                     Logger.success(`${file.name}: 已转换为音频文件`);
                 } catch (error) {
                     Logger.error(`${file.name}: 音频提取失败 - ${error.message}`);
@@ -463,53 +463,29 @@ function getAudioDuration(file) {
     });
 }
 
-// 从视频文件提取音频
+// 从视频文件提取音频（快速方法）
 async function extractAudioFromVideo(videoFile) {
     Logger.info(`${videoFile.name}: 检测到视频文件，正在提取音频...`);
     
-    const videoElement = document.createElement('video');
-    videoElement.src = URL.createObjectURL(videoFile);
-    
-    return new Promise((resolve, reject) => {
-        videoElement.onloadedmetadata = async () => {
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContext.createMediaElementSource(videoElement);
-                const destination = audioContext.createMediaStreamDestination();
-                source.connect(destination);
-                
-                const mediaRecorder = new MediaRecorder(destination.stream);
-                const chunks = [];
-                
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) chunks.push(e.data);
-                };
-                
-                mediaRecorder.onstop = () => {
-                    const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-                    URL.revokeObjectURL(videoElement.src);
-                    audioContext.close();
-                    Logger.success(`${videoFile.name}: 音频提取完成`);
-                    resolve(audioBlob);
-                };
-                
-                mediaRecorder.start();
-                videoElement.play();
-                
-                videoElement.onended = () => {
-                    mediaRecorder.stop();
-                };
-            } catch (error) {
-                URL.revokeObjectURL(videoElement.src);
-                reject(error);
-            }
-        };
+    try {
+        // 直接读取视频文件的音频轨道
+        const arrayBuffer = await videoFile.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
-        videoElement.onerror = () => {
-            URL.revokeObjectURL(videoElement.src);
-            reject(new Error('无法加载视频文件'));
-        };
-    });
+        // 解码音频数据（从视频中提取）
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // 转换为 WAV 格式
+        const wavBlob = audioBufferToWav(audioBuffer);
+        
+        await audioContext.close();
+        Logger.success(`${videoFile.name}: 音频提取完成 (${Math.round(audioBuffer.duration)}秒)`);
+        
+        return wavBlob;
+    } catch (error) {
+        Logger.error(`${videoFile.name}: 音频提取失败 - ${error.message}`);
+        throw new Error('视频文件不包含音频轨道或格式不支持');
+    }
 }
 
 // 分割音频文件
