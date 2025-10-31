@@ -19,11 +19,23 @@
 
 ## 📸 介面預覽
 
+### REST API 批次上傳
+
 <div align="center">
 
-![Soniox ASR 主介面](screenshot-20251031.png)
+![REST API 批次上傳介面](screenshot-rest-api.png)
 
-*現代化 Web 介面，包含三大核心功能：檔案轉錄、即時語音和多語言翻譯*
+*檔案轉錄介面，包含音訊處理選項：降噪、變速和批次上傳支援*
+
+</div>
+
+### WebSocket 即時轉錄
+
+<div align="center">
+
+![WebSocket 即時轉錄介面](screenshot-websocket.png)
+
+*即時語音識別，支援多語言翻譯和人聲分離*
 
 </div>
 

@@ -19,11 +19,23 @@ A complete speech recognition web application based on Soniox API, supporting fi
 
 ## 📸 Interface Preview
 
+### REST API Batch Upload
+
 <div align="center">
 
-![Soniox ASR Main Interface](screenshot-20251031.png)
+![REST API Batch Upload Interface](screenshot-rest-api.png)
 
-*Modern web interface with three core features: File Transcription, Real-time Speech, and Multilingual Translation*
+*File transcription interface with audio processing options: noise reduction, speed change, and batch upload support*
+
+</div>
+
+### WebSocket Real-time Transcription
+
+<div align="center">
+
+![WebSocket Real-time Interface](screenshot-websocket.png)
+
+*Real-time speech recognition with multilingual translation and speaker diarization*
 
 </div>
 

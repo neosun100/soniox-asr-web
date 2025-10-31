@@ -19,11 +19,23 @@
 
 ## 📸 界面预览
 
+### REST API 批量上传
+
 <div align="center">
 
-![Soniox ASR 主界面](screenshot-20251031.png)
+![REST API 批量上传界面](screenshot-rest-api.png)
 
-*现代化 Web 界面，包含三大核心功能：文件转录、实时语音和多语言翻译*
+*文件转录界面，包含音频处理选项：降噪、变速和批量上传支持*
+
+</div>
+
+### WebSocket 实时转录
+
+<div align="center">
+
+![WebSocket 实时转录界面](screenshot-websocket.png)
+
+*实时语音识别，支持多语言翻译和人声分离*
 
 </div>
 
