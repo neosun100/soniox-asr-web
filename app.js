@@ -860,7 +860,9 @@ async function connectWebSocket(apiKey, stream, file) {
     document.getElementById('wsResult').textContent = '';
     
     try {
-        const ws = new WebSocket('ws://localhost:8001/ws/transcribe');
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/transcribe`;
+        const ws = new WebSocket(wsUrl);
         
         ws.onopen = async () => {
             wsLog('✅ WebSocket 连接成功');
