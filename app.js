@@ -258,31 +258,48 @@ async function startBatchTranscription() {
             const statusEl = document.getElementById(`status-${i}`);
             statusEl.textContent = '检测时长...';
             
+            // 检测视频文件并提取音频
+            let processFile = file;
+            if (file.type.startsWith('video/')) {
+                try {
+                    statusEl.textContent = '提取音频...';
+                    const audioBlob = await extractAudioFromVideo(file);
+                    // 创建新的File对象，保留原文件名但改为音频扩展名
+                    const audioFileName = file.name.replace(/\.[^.]+$/, '.webm');
+                    processFile = new File([audioBlob], audioFileName, { type: 'audio/webm' });
+                    Logger.success(`${file.name}: 已转换为音频文件`);
+                } catch (error) {
+                    Logger.error(`${file.name}: 音频提取失败 - ${error.message}`);
+                    statusEl.textContent = '提取失败';
+                    continue;
+                }
+            }
+            
             let duration = 0;
             try {
-                duration = await getAudioDuration(file);
-                Logger.debug(`${file.name}: ${Math.round(duration)}秒`);
+                duration = await getAudioDuration(processFile);
+                Logger.debug(`${processFile.name}: ${Math.round(duration)}秒`);
             } catch (error) {
-                Logger.warning(`${file.name}: 无法检测时长，直接上传`);
+                Logger.warning(`${processFile.name}: 无法检测时长，直接上传`);
             }
 
             const MAX_DURATION = 300 * 60; // 5 hours in seconds (18000 seconds)
             
-            Logger.debug(`${file.name}: 时长=${duration}秒, 阈值=${MAX_DURATION}秒, 需要切分=${duration > MAX_DURATION}`);
+            Logger.debug(`${processFile.name}: 时长=${duration}秒, 阈值=${MAX_DURATION}秒, 需要切分=${duration > MAX_DURATION}`);
             
             if (duration === 0 || duration <= MAX_DURATION) {
                 allTasks.push({
                     fileIndex: i,
-                    file: file,
+                    file: processFile,
                     isChunk: false
                 });
                 fileTaskMap[i] = [allTasks.length - 1];
             } else {
                 const numChunks = Math.ceil(duration / MAX_DURATION);
-                Logger.info(`${file.name}: 需要切分成 ${numChunks} 段`);
+                Logger.info(`${processFile.name}: 需要切分成 ${numChunks} 段`);
                 statusEl.textContent = `切分成${numChunks}段...`;
                 
-                const chunks = await splitAudioFile(file, numChunks);
+                const chunks = await splitAudioFile(processFile, numChunks);
                 const taskIndices = [];
                 
                 chunks.forEach((chunk, chunkIndex) => {
@@ -425,23 +442,73 @@ function updateProgress(current, total) {
     document.querySelector('.progress-text').textContent = percentage + '%';
 }
 
-// 获取音频时长
+// 获取音频时长（支持视频文件）
 function getAudioDuration(file) {
     return new Promise((resolve, reject) => {
-        const audio = document.createElement('audio');
-        audio.preload = 'metadata';
+        const isVideo = file.type.startsWith('video/');
+        const element = document.createElement(isVideo ? 'video' : 'audio');
+        element.preload = 'metadata';
         
-        audio.onloadedmetadata = () => {
-            URL.revokeObjectURL(audio.src);
-            resolve(audio.duration);
+        element.onloadedmetadata = () => {
+            URL.revokeObjectURL(element.src);
+            resolve(element.duration);
         };
         
-        audio.onerror = () => {
-            URL.revokeObjectURL(audio.src);
-            reject(new Error('无法读取音频'));
+        element.onerror = () => {
+            URL.revokeObjectURL(element.src);
+            reject(new Error(`无法读取${isVideo ? '视频' : '音频'}`));
         };
         
-        audio.src = URL.createObjectURL(file);
+        element.src = URL.createObjectURL(file);
+    });
+}
+
+// 从视频文件提取音频
+async function extractAudioFromVideo(videoFile) {
+    Logger.info(`${videoFile.name}: 检测到视频文件，正在提取音频...`);
+    
+    const videoElement = document.createElement('video');
+    videoElement.src = URL.createObjectURL(videoFile);
+    
+    return new Promise((resolve, reject) => {
+        videoElement.onloadedmetadata = async () => {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaElementSource(videoElement);
+                const destination = audioContext.createMediaStreamDestination();
+                source.connect(destination);
+                
+                const mediaRecorder = new MediaRecorder(destination.stream);
+                const chunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data);
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+                    URL.revokeObjectURL(videoElement.src);
+                    audioContext.close();
+                    Logger.success(`${videoFile.name}: 音频提取完成`);
+                    resolve(audioBlob);
+                };
+                
+                mediaRecorder.start();
+                videoElement.play();
+                
+                videoElement.onended = () => {
+                    mediaRecorder.stop();
+                };
+            } catch (error) {
+                URL.revokeObjectURL(videoElement.src);
+                reject(error);
+            }
+        };
+        
+        videoElement.onerror = () => {
+            URL.revokeObjectURL(videoElement.src);
+            reject(new Error('无法加载视频文件'));
+        };
     });
 }
 
