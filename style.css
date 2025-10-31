@@ -724,3 +724,87 @@ input[type="file"]:hover {
     font-weight: bold;
 }
 
+
+/* 页脚样式 */
+.footer {
+    margin-top: 60px;
+    padding: 40px 20px 20px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+    border-top: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.star-cta {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.star-cta h3 {
+    font-size: 28px;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.star-cta p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 20px;
+}
+
+.star-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.star-button {
+    display: inline-block;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.star-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.action-link {
+    display: inline-block;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.action-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.footer-text {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    margin-top: 20px;
+}
+
+.footer-text a {
+    color: #8b5cf6;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.footer-text a:hover {
+    color: #a78bfa;
+}
