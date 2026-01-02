@@ -81,9 +81,19 @@ A complete speech recognition web application based on Soniox API, supporting fi
 ### 🔌 RESTful API Service
 
 - ✅ **Independent Backend**: FastAPI high-performance async service
-- ✅ **Auto Splitting**: Backend automatically handles extra-long audio
-- ✅ **Swagger Documentation**: Interactive API documentation
+- ✅ **Complete API Coverage**: Files, Transcriptions, Models API
+- ✅ **Swagger Documentation**: Interactive API documentation at `/docs`
+- ✅ **ReDoc Documentation**: Beautiful API docs at `/redoc`
 - ✅ **CORS Support**: Cross-origin request support
+- ✅ **Health Check**: `/health` endpoint for monitoring
+- ✅ **Version Info**: `/version` endpoint
+
+## 🤖 MCP Server Support
+
+- ✅ **Model Context Protocol**: AI assistants can call Soniox API
+- ✅ **6 MCP Tools**: transcribe, list files/transcriptions/models, delete
+- ✅ **Claude Desktop**: Direct integration
+- ✅ **Easy Configuration**: Simple JSON config file
 
 ---
 
