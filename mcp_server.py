@@ -106,7 +106,7 @@ async def handle_request(request: dict) -> dict:
             "capabilities": {"tools": {}},
             "serverInfo": {
                 "name": "soniox-asr-mcp",
-                "version": "1.1.0"
+                "version": "4.0.0"
             }
         }
     

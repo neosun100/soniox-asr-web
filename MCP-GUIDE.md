@@ -66,9 +66,73 @@ AI: 使用 list_models 工具...
 
 ## 测试
 
+### 命令行测试
+
 ```bash
-# 测试 MCP 服务器
+# 1. 初始化测试
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | python3 mcp_server.py
+
+# 2. 列出工具
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 mcp_server.py
+
+# 3. 测试转录（需要先启动本地 API 服务）
+echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_models","arguments":{"api_key":"YOUR_API_KEY"}}}' | python3 mcp_server.py
+```
+
+### Claude Desktop 测试
+
+配置完成后，在 Claude Desktop 中：
+
+```
+User: 帮我列出 Soniox 的所有可用模型
+Claude: [调用 list_models 工具]
+返回: stt-rt-v3, stt-async-v3, ...
+
+User: 帮我转录这个文件 /path/to/audio.mp3
+Claude: [调用 transcribe_file 工具]
+返回: 转录文本...
+```
+
+### Python 客户端示例
+
+```python
+import json
+import subprocess
+
+def call_mcp_tool(tool_name, arguments):
+    """调用 MCP 工具"""
+    request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": tool_name,
+            "arguments": arguments
+        }
+    }
+    
+    result = subprocess.run(
+        ["python3", "mcp_server.py"],
+        input=json.dumps(request),
+        capture_output=True,
+        text=True
+    )
+    
+    return json.loads(result.stdout)
+
+# 示例：列出模型
+response = call_mcp_tool("list_models", {
+    "api_key": "YOUR_API_KEY"
+})
+print(response)
+
+# 示例：转录文件
+response = call_mcp_tool("transcribe_file", {
+    "file_path": "/path/to/audio.mp3",
+    "api_key": "YOUR_API_KEY",
+    "enable_diarization": True
+})
+print(response)
 ```
 
 ## 依赖

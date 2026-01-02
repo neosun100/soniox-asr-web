@@ -621,25 +621,52 @@ python-multipart==0.0.6
 
 ## 🔄 Changelog
 
-### v1.1.0 (2026-01-02)
-- ✨ 添加 Context 编辑器（General/Text/Terms/Translation Terms）
-- ✨ 添加 Context 模板管理（保存/加载）
-- ✨ 添加 Language Hints 复选框多选（默认中英文）
-- ✨ 添加 Confidence Scores 置信度可视化（低置信度高亮）
-- ✨ 添加 Manual Finalization 立即终结按钮
-- ✨ 添加语言标注彩色标签（5色动态分配）
-- ✨ 添加 SRT/VTT 字幕导出功能
-- ✨ WebSocket 累积显示所有对话历史
-- ✨ 添加实时下载转录结果
-- ✨ 说话人颜色区分（10种颜色）
-- 🔧 使用 loguru 替代 print 日志
-- 🔧 添加 /health 健康检查端点
-- 🔧 添加 /version 版本信息端点
-- 🔧 添加 Pydantic 响应模型
-- 🔧 完善 Swagger/ReDoc 文档
-- 🐳 创建 all-in-one Docker 镜像
-- 🐛 修复 WebSocket Tab 文件上传 bug
-- 🐛 修复颜色对比度问题
+### v4.0.0 (2026-01-03)
+
+**🎯 重大更新：完整 API 覆盖 + MCP 支持**
+
+**✨ Context 功能（最强大的新功能）**
+- Context 编辑器（General/Text/Terms/Translation Terms 四个部分）
+- Context 模板管理（保存/加载/删除）
+- REST API 和 WebSocket 都支持 Context
+
+**✨ 前端增强**
+- Language Hints 复选框多选（默认中英文）
+- Confidence Scores 置信度可视化（低置信度高亮）
+- Manual Finalization 立即终结按钮
+- 语言标注彩色标签（5色动态分配）
+- 说话人颜色区分（10种颜色）
+- SRT/VTT 字幕导出功能
+- WebSocket 累积显示所有对话历史
+- 实时下载转录结果
+
+**🔌 完整 REST API（12个端点）**
+- Files API: 列表、详情、下载链接、删除（5个端点）
+- Transcriptions API: 列表、详情、删除（3个端点）
+- Models API: 列出所有可用模型（1个端点）
+- 系统 API: 健康检查、版本信息（3个端点）
+
+**🤖 MCP 服务器**
+- 6个 MCP 工具（transcribe, list, delete）
+- 支持 Claude Desktop、Cline 等 AI 助手
+- 完整配置和使用文档
+
+**🔧 后端改进**
+- 使用 loguru 日志系统
+- Pydantic 响应模型
+- 完善 Swagger/ReDoc 文档
+- 健康检查和版本端点
+
+**🐳 Docker 优化**
+- All-in-one 单镜像部署
+- 移除废弃 version 属性
+- nginx 添加 /redoc 代理
+- 更新截图
+
+**🐛 Bug 修复**
+- 修复 WebSocket Tab 文件上传 disabled bug
+- 修复颜色对比度问题（白色背景白色文字）
+- 修复 WebSocket 历史消息保留问题
 
 ### v3.0.0 (2025-10-31)
 - ✨ Added WebSocket real-time speech recognition

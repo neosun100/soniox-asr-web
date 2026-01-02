@@ -15,8 +15,8 @@ logger.remove()
 logger.add(sys.stdout, format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}", level="DEBUG")
 
 # 版本信息
-API_VERSION = "1.1.0"
-BUILD_DATE = "2026-01-02"
+API_VERSION = "4.0.0"
+BUILD_DATE = "2026-01-03"
 
 # Soniox API 基础 URL
 SONIOX_API_BASE = "https://api.soniox.com/v1"
