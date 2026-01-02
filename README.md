@@ -611,6 +611,26 @@ python-multipart==0.0.6
 
 ## 🔄 Changelog
 
+### v1.1.0 (2026-01-02)
+- ✨ 添加 Context 编辑器（General/Text/Terms/Translation Terms）
+- ✨ 添加 Context 模板管理（保存/加载）
+- ✨ 添加 Language Hints 复选框多选（默认中英文）
+- ✨ 添加 Confidence Scores 置信度可视化（低置信度高亮）
+- ✨ 添加 Manual Finalization 立即终结按钮
+- ✨ 添加语言标注彩色标签（5色动态分配）
+- ✨ 添加 SRT/VTT 字幕导出功能
+- ✨ WebSocket 累积显示所有对话历史
+- ✨ 添加实时下载转录结果
+- ✨ 说话人颜色区分（10种颜色）
+- 🔧 使用 loguru 替代 print 日志
+- 🔧 添加 /health 健康检查端点
+- 🔧 添加 /version 版本信息端点
+- 🔧 添加 Pydantic 响应模型
+- 🔧 完善 Swagger/ReDoc 文档
+- 🐳 创建 all-in-one Docker 镜像
+- 🐛 修复 WebSocket Tab 文件上传 bug
+- 🐛 修复颜色对比度问题
+
 ### v3.0.0 (2025-10-31)
 - ✨ Added WebSocket real-time speech recognition
 - ✨ Added multilingual translation (60+ languages)

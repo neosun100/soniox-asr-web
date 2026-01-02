@@ -1371,7 +1371,10 @@ async function doConnect() {
                 if (currentSeg.tokens.length > 0) segments.push(currentSeg);
                 
                 const finalHtml = segments.map(seg => {
-                    const speaker = seg.speaker !== null ? `<strong style="color: #667eea;">说话人${seg.speaker}:</strong> ` : '';
+                    // 说话人颜色（10种清晰颜色）
+                    const speakerColors = ['#667eea', '#059669', '#dc2626', '#f59e0b', '#7c3aed', '#0891b2', '#db2777', '#ea580c', '#65a30d', '#8b5cf6'];
+                    const speakerColor = seg.speaker !== null ? speakerColors[seg.speaker % 10] : '#333';
+                    const speaker = seg.speaker !== null ? `<strong style="color: ${speakerColor};">说话人${seg.speaker}:</strong> ` : '';
                     
                     // 动态分配颜色（最多5种清晰颜色）
                     const colorPalette = ['#2563eb', '#059669', '#dc2626', '#f59e0b', '#7c3aed']; // 蓝、绿、红、橙、紫
