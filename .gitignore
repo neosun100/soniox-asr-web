@@ -73,3 +73,9 @@ websocket-test.html
 # *.wav
 # *.m4a
 # *.flac
+
+# Docker
+.env
+
+# WeChat articles (do not push to GitHub)
+wechat-article.md

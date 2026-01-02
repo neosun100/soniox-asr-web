@@ -1,0 +1,17 @@
+FROM nginx:alpine
+
+# 复制前端文件
+COPY index.html /usr/share/nginx/html/
+COPY style.css /usr/share/nginx/html/
+COPY app.js /usr/share/nginx/html/
+COPY clear-storage.html /usr/share/nginx/html/
+COPY screenshot-rest-api.png /usr/share/nginx/html/
+COPY screenshot-websocket.png /usr/share/nginx/html/
+
+# 复制 Nginx 配置
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 暴露端口
+EXPOSE 8000
+
+# Nginx 会自动启动

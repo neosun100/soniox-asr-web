@@ -724,3 +724,207 @@ input[type="file"]:hover {
     font-weight: bold;
 }
 
+
+/* 页脚样式 */
+.footer {
+    margin-top: 80px;
+    padding: 60px 20px 30px;
+    background: linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.05) 100%);
+}
+
+.star-cta {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.star-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.star-cta h3 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.star-cta p {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 30px;
+}
+
+.star-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    color: white;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn.primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+    border: none;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+}
+
+.action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.action-btn.primary:hover {
+    box-shadow: 0 8px 30px rgba(139, 92, 246, 0.6);
+    background: linear-gradient(135deg, #9d6fff 0%, #4c8fff 100%);
+}
+
+.btn-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.btn-text {
+    line-height: 1;
+}
+
+.footer-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.3) 50%, transparent 100%);
+    margin: 40px auto;
+    max-width: 400px;
+}
+
+.footer-text {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+}
+
+.footer-text a {
+    color: #8b5cf6;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.footer-text a:hover {
+    color: #a78bfa;
+}
+
+
+/* 隐私提示样式 */
+.privacy-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px 15px;
+    background: rgba(34, 197, 94, 0.15);
+    border-left: 3px solid #22c55e;
+    border-radius: 6px;
+}
+
+.privacy-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.privacy-text {
+    font-size: 13px;
+    color: #22c55e;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+/* 音频处理选项样式 */
+.audio-processing-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.audio-processing-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #a78bfa;
+}
+
+.processing-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.speed-control {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.speed-options {
+    display: flex;
+    gap: 10px;
+    margin-left: 30px;
+    flex-wrap: wrap;
+}
+
+.warning-text {
+    margin-left: 30px;
+    font-size: 12px;
+    color: #fbbf24;
+    margin-top: 5px;
+}
+
+/* 小号隐私提示 */
+.privacy-notice-small {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: rgba(34, 197, 94, 0.1);
+    border-left: 2px solid #22c55e;
+    border-radius: 4px;
+}
+
+.privacy-notice-small .privacy-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.privacy-notice-small .privacy-text {
+    font-size: 12px;
+    color: #22c55e;
+    font-weight: 500;
+    line-height: 1.4;
+}

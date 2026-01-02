@@ -10,6 +10,12 @@ window.addEventListener('DOMContentLoaded', () => {
         console.log('已加载保存的 API Keys');
     }
     
+    // 强制重置音频来源为麦克风（防止浏览器缓存表单状态）
+    const microphoneRadio = document.querySelector('input[name="audioSource"][value="microphone"]');
+    if (microphoneRadio) {
+        microphoneRadio.checked = true;
+    }
+    
     // API Key 输入框变化时自动保存
     apiKeyInput.addEventListener('input', () => {
         const apiKeys = apiKeyInput.value.trim();
@@ -17,6 +23,15 @@ window.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem(API_KEY_STORAGE_KEY, apiKeys);
         }
     });
+    
+    // 变速选项显示/隐藏
+    const enableSpeedChange = document.getElementById('enableSpeedChange');
+    const speedOptions = document.getElementById('speedOptions');
+    if (enableSpeedChange && speedOptions) {
+        enableSpeedChange.addEventListener('change', (e) => {
+            speedOptions.style.display = e.target.checked ? 'flex' : 'none';
+        });
+    }
     
     // 音频来源切换
     document.querySelectorAll('input[name="audioSource"]').forEach(radio => {
@@ -220,8 +235,7 @@ function clearFileList() {
     document.getElementById('clearBtn').style.display = 'none';
     document.getElementById('resultTabs').innerHTML = '';
     document.getElementById('uploadTranscript').innerHTML = '';
-    document.getElementById('downloadBtn').style.display = 'none';
-    document.getElementById('downloadAllBtn').style.display = 'none';
+    document.getElementById('downloadOptions').style.display = 'none';
     Logger.info(`清空了 ${count} 个文件`);
 }
 
@@ -253,36 +267,98 @@ async function startBatchTranscription() {
         const allTasks = [];
         const fileTaskMap = {};
         
+        // 获取音频处理选项
+        const enableNoiseReduction = document.getElementById('enableNoiseReduction').checked;
+        const enableSpeedChange = document.getElementById('enableSpeedChange').checked;
+        const speedRate = enableSpeedChange ? parseFloat(document.querySelector('input[name="speedRate"]:checked').value) : 1.0;
+        
+        if (enableNoiseReduction) {
+            Logger.info('✓ 已启用降噪处理');
+        }
+        if (enableSpeedChange) {
+            Logger.info(`✓ 已启用变速处理 (${speedRate}x)`);
+        }
+        
         for (let i = 0; i < selectedFiles.length; i++) {
             const file = selectedFiles[i];
             const statusEl = document.getElementById(`status-${i}`);
             statusEl.textContent = '检测时长...';
             
+            // 检测视频文件并提取音频
+            let processFile = file;
+            if (file.type.startsWith('video/')) {
+                try {
+                    statusEl.textContent = '提取音频...';
+                    const audioBlob = await extractAudioFromVideo(file);
+                    const audioFileName = file.name.replace(/\.[^.]+$/, '.wav');
+                    processFile = new File([audioBlob], audioFileName, { type: 'audio/wav' });
+                    Logger.success(`${file.name}: 已转换为音频文件`);
+                } catch (error) {
+                    Logger.error(`${file.name}: 音频提取失败 - ${error.message}`);
+                    statusEl.textContent = '提取失败';
+                    continue;
+                }
+            }
+            
+            // 音频预处理（降噪和变速）
+            if (enableNoiseReduction || enableSpeedChange) {
+                try {
+                    statusEl.textContent = '音频处理中...';
+                    
+                    // 读取音频数据
+                    const arrayBuffer = await processFile.arrayBuffer();
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    let audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    // 应用降噪
+                    if (enableNoiseReduction) {
+                        audioBuffer = await applyNoiseReduction(audioBuffer);
+                    }
+                    
+                    // 应用变速
+                    if (enableSpeedChange) {
+                        audioBuffer = await applySpeedChange(audioBuffer, speedRate);
+                    }
+                    
+                    // 转换回 WAV 文件
+                    const processedBlob = audioBufferToWav(audioBuffer);
+                    const processedFileName = processFile.name.replace(/\.[^.]+$/, '_processed.wav');
+                    processFile = new File([processedBlob], processedFileName, { type: 'audio/wav' });
+                    
+                    await audioContext.close();
+                    Logger.success(`${file.name}: 音频处理完成`);
+                } catch (error) {
+                    Logger.error(`${file.name}: 音频处理失败 - ${error.message}`);
+                    statusEl.textContent = '处理失败';
+                    continue;
+                }
+            }
+            
             let duration = 0;
             try {
-                duration = await getAudioDuration(file);
-                Logger.debug(`${file.name}: ${Math.round(duration)}秒`);
+                duration = await getAudioDuration(processFile);
+                Logger.debug(`${processFile.name}: ${Math.round(duration)}秒`);
             } catch (error) {
-                Logger.warning(`${file.name}: 无法检测时长，直接上传`);
+                Logger.warning(`${processFile.name}: 无法检测时长，直接上传`);
             }
 
             const MAX_DURATION = 300 * 60; // 5 hours in seconds (18000 seconds)
             
-            Logger.debug(`${file.name}: 时长=${duration}秒, 阈值=${MAX_DURATION}秒, 需要切分=${duration > MAX_DURATION}`);
+            Logger.debug(`${processFile.name}: 时长=${duration}秒, 阈值=${MAX_DURATION}秒, 需要切分=${duration > MAX_DURATION}`);
             
             if (duration === 0 || duration <= MAX_DURATION) {
                 allTasks.push({
                     fileIndex: i,
-                    file: file,
+                    file: processFile,
                     isChunk: false
                 });
                 fileTaskMap[i] = [allTasks.length - 1];
             } else {
                 const numChunks = Math.ceil(duration / MAX_DURATION);
-                Logger.info(`${file.name}: 需要切分成 ${numChunks} 段`);
+                Logger.info(`${processFile.name}: 需要切分成 ${numChunks} 段`);
                 statusEl.textContent = `切分成${numChunks}段...`;
                 
-                const chunks = await splitAudioFile(file, numChunks);
+                const chunks = await splitAudioFile(processFile, numChunks);
                 const taskIndices = [];
                 
                 chunks.forEach((chunk, chunkIndex) => {
@@ -330,7 +406,7 @@ async function startBatchTranscription() {
                 try {
                     const taskStartTime = Date.now();
                     const apiKeys = getApiKeys();
-                    const text = await uploadSingleFileWithRetry(apiKeys, task.file);
+                    const result = await uploadSingleFileWithRetry(apiKeys, task.file);
                     const taskEndTime = Date.now();
                     const taskDuration = ((taskEndTime - taskStartTime) / 1000).toFixed(2);
                     
@@ -343,7 +419,7 @@ async function startBatchTranscription() {
                         Logger.success(`${fileName}: 完成 (${taskDuration}秒)`);
                     }
                     
-                    return { taskIndex: allTasks.indexOf(task), text: text, success: true, duration: taskDuration };
+                    return { taskIndex: allTasks.indexOf(task), text: result.text, words: result.words, success: true, duration: taskDuration };
                 } catch (error) {
                     completedTasks++;
                     updateProgress(completedTasks, totalTasks);
@@ -387,7 +463,8 @@ async function startBatchTranscription() {
                 
                 transcriptionResults[i] = {
                     fileName: fileName.replace(/\.[^/.]+$/, ''),
-                    text: texts.join('\n\n')
+                    text: texts.join('\n\n'),
+                    words: taskResults.flatMap(r => r.words || [])
                 };
                 
                 statusEl.textContent = '完成';
@@ -397,7 +474,8 @@ async function startBatchTranscription() {
                 const errors = taskResults.filter(r => !r.success).map(r => r.error).join('; ');
                 transcriptionResults[i] = {
                     fileName: fileName.replace(/\.[^/.]+$/, ''),
-                    text: `错误: ${errors}`
+                    text: `错误: ${errors}`,
+                    words: []
                 };
                 
                 statusEl.textContent = '失败';
@@ -425,24 +503,137 @@ function updateProgress(current, total) {
     document.querySelector('.progress-text').textContent = percentage + '%';
 }
 
-// 获取音频时长
+// 获取音频时长（支持视频文件）
 function getAudioDuration(file) {
     return new Promise((resolve, reject) => {
-        const audio = document.createElement('audio');
-        audio.preload = 'metadata';
+        const isVideo = file.type.startsWith('video/');
+        const element = document.createElement(isVideo ? 'video' : 'audio');
+        element.preload = 'metadata';
         
-        audio.onloadedmetadata = () => {
-            URL.revokeObjectURL(audio.src);
-            resolve(audio.duration);
+        element.onloadedmetadata = () => {
+            URL.revokeObjectURL(element.src);
+            resolve(element.duration);
         };
         
-        audio.onerror = () => {
-            URL.revokeObjectURL(audio.src);
-            reject(new Error('无法读取音频'));
+        element.onerror = () => {
+            URL.revokeObjectURL(element.src);
+            reject(new Error(`无法读取${isVideo ? '视频' : '音频'}`));
         };
         
-        audio.src = URL.createObjectURL(file);
+        element.src = URL.createObjectURL(file);
     });
+}
+
+// 从视频文件提取音频（快速方法）
+async function extractAudioFromVideo(videoFile) {
+    Logger.info(`${videoFile.name}: 检测到视频文件，正在提取音频...`);
+    
+    try {
+        // 直接读取视频文件的音频轨道
+        const arrayBuffer = await videoFile.arrayBuffer();
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 解码音频数据（从视频中提取）
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // 转换为 WAV 格式
+        const wavBlob = audioBufferToWav(audioBuffer);
+        
+        await audioContext.close();
+        Logger.success(`${videoFile.name}: 音频提取完成 (${Math.round(audioBuffer.duration)}秒)`);
+        
+        return wavBlob;
+    } catch (error) {
+        Logger.error(`${videoFile.name}: 音频提取失败 - ${error.message}`);
+        throw new Error('视频文件不包含音频轨道或格式不支持');
+    }
+}
+
+// 降噪处理
+async function applyNoiseReduction(audioBuffer) {
+    Logger.info('应用降噪处理...');
+    
+    try {
+        const offlineContext = new OfflineAudioContext(
+            audioBuffer.numberOfChannels,
+            audioBuffer.length,
+            audioBuffer.sampleRate
+        );
+        
+        const source = offlineContext.createBufferSource();
+        source.buffer = audioBuffer;
+        
+        // 高通滤波器（去除低频噪音 < 80Hz）
+        const highpass = offlineContext.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 80;
+        
+        // 低通滤波器（去除高频噪音 > 3000Hz）
+        const lowpass = offlineContext.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = 3000;
+        
+        // 动态压缩器（平衡音量）
+        const compressor = offlineContext.createDynamicsCompressor();
+        compressor.threshold.value = -50;
+        compressor.ratio.value = 12;
+        compressor.attack.value = 0;
+        compressor.release.value = 0.25;
+        
+        // 连接节点
+        source.connect(highpass);
+        highpass.connect(lowpass);
+        lowpass.connect(compressor);
+        compressor.connect(offlineContext.destination);
+        
+        source.start();
+        const processedBuffer = await offlineContext.startRendering();
+        
+        Logger.success('降噪处理完成');
+        return processedBuffer;
+    } catch (error) {
+        Logger.error(`降噪处理失败: ${error.message}`);
+        throw error;
+    }
+}
+
+// 变速处理
+async function applySpeedChange(audioBuffer, speed) {
+    Logger.info(`应用变速处理 (${speed}x)...`);
+    
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const newLength = Math.floor(audioBuffer.length / speed);
+        
+        const newBuffer = audioContext.createBuffer(
+            audioBuffer.numberOfChannels,
+            newLength,
+            audioBuffer.sampleRate
+        );
+        
+        // 重采样（线性插值）
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const oldData = audioBuffer.getChannelData(channel);
+            const newData = newBuffer.getChannelData(channel);
+            
+            for (let i = 0; i < newLength; i++) {
+                const oldIndex = i * speed;
+                const index1 = Math.floor(oldIndex);
+                const index2 = Math.min(index1 + 1, oldData.length - 1);
+                const fraction = oldIndex - index1;
+                
+                // 线性插值
+                newData[i] = oldData[index1] * (1 - fraction) + oldData[index2] * fraction;
+            }
+        }
+        
+        await audioContext.close();
+        Logger.success(`变速处理完成 (${speed}x)`);
+        return newBuffer;
+    } catch (error) {
+        Logger.error(`变速处理失败: ${error.message}`);
+        throw error;
+    }
 }
 
 // 分割音频文件
@@ -576,11 +767,8 @@ async function uploadSingleFile(apiKey, file) {
     const modelSelect = document.getElementById('restModel');
     const model = modelSelect ? modelSelect.value : 'stt-async-v3';
 
-    // 获取语言提示
-    const languageSelect = document.getElementById('restLanguage');
-    const languageHints = languageSelect ? 
-        Array.from(languageSelect.selectedOptions).map(opt => opt.value).filter(val => val) : 
-        null;
+    // 获取语言提示（复选框）
+    const languageHints = Array.from(document.querySelectorAll('.rest-lang-hint:checked')).map(cb => cb.value);
 
     // 获取语言识别选项
     const languageIdCheckbox = document.getElementById('restLanguageId');
@@ -596,6 +784,13 @@ async function uploadSingleFile(apiKey, file) {
     // 添加语言提示（如果有选择）
     if (languageHints && languageHints.length > 0) {
         transcriptionConfig.language_hints = languageHints;
+    }
+
+    // 添加 Context（如果有配置）
+    const context = buildContextObject();
+    if (context) {
+        transcriptionConfig.context = context;
+        Logger.info('✓ 已应用 Context 配置');
     }
 
     const transcriptionResponse = await fetch('https://api.soniox.com/v1/transcriptions', {
@@ -646,6 +841,7 @@ async function waitForTranscription(apiKey, transcriptionId) {
 
             const textData = await textResponse.json();
             let text = '';
+            let words = [];
 
             if (textData.tokens && Array.isArray(textData.tokens)) {
                 let currentSpeaker = null;
@@ -655,6 +851,15 @@ async function waitForTranscription(apiKey, transcriptionId) {
                         text += `\n说话人 ${token.speaker}: `;
                     }
                     text += token.text || '';
+                    
+                    // 收集时间戳用于字幕导出
+                    if (token.start_ms !== undefined && token.end_ms !== undefined) {
+                        words.push({
+                            text: token.text || '',
+                            start_time: token.start_ms / 1000,
+                            end_time: token.end_ms / 1000
+                        });
+                    }
                 });
             } else if (typeof textData === 'string') {
                 text = textData;
@@ -662,7 +867,7 @@ async function waitForTranscription(apiKey, transcriptionId) {
                 text = textData.text;
             }
 
-            return text.trim();
+            return { text: text.trim(), words };
         } else if (data.status === 'error') {
             throw new Error(data.error_message || '转录失败');
         }
@@ -687,7 +892,7 @@ function displayResults() {
 
     if (Object.keys(transcriptionResults).length > 0) {
         showResult(Object.keys(transcriptionResults)[0]);
-        document.getElementById('downloadAllBtn').style.display = 'inline-block';
+        document.getElementById('downloadOptions').style.display = 'block';
     }
 }
 
@@ -700,8 +905,71 @@ function showResult(index) {
     
     document.querySelectorAll('.result-tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.result-tab')[Object.keys(transcriptionResults).indexOf(index.toString())].classList.add('active');
+}
+
+// 格式化时间为 SRT 格式 (00:00:00,000)
+function formatSrtTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+}
+
+// 格式化时间为 VTT 格式 (00:00:00.000)
+function formatVttTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const ms = Math.floor((seconds % 1) * 1000);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+}
+
+// 将文本和时间戳转换为 SRT 格式
+function convertToSrt(text, words) {
+    if (!words || words.length === 0) {
+        // 没有时间戳，按行分割
+        const lines = text.split('\n').filter(l => l.trim());
+        return lines.map((line, i) => `${i + 1}\n00:00:00,000 --> 00:00:00,000\n${line}\n`).join('\n');
+    }
     
-    document.getElementById('downloadBtn').style.display = 'inline-block';
+    // 按句子分组（每 10 个词或遇到标点）
+    const subtitles = [];
+    let currentWords = [];
+    let startTime = 0;
+    
+    words.forEach((word, i) => {
+        if (currentWords.length === 0) {
+            startTime = word.start_time;
+        }
+        currentWords.push(word.text);
+        
+        const isPunctuation = /[。！？.!?]$/.test(word.text);
+        const isLast = i === words.length - 1;
+        
+        if (currentWords.length >= 10 || isPunctuation || isLast) {
+            subtitles.push({
+                start: startTime,
+                end: word.end_time,
+                text: currentWords.join('')
+            });
+            currentWords = [];
+        }
+    });
+    
+    return subtitles.map((sub, i) => 
+        `${i + 1}\n${formatSrtTime(sub.start)} --> ${formatSrtTime(sub.end)}\n${sub.text}\n`
+    ).join('\n');
+}
+
+// 将文本和时间戳转换为 VTT 格式
+function convertToVtt(text, words) {
+    const srtContent = convertToSrt(text, words);
+    // VTT 格式：添加头部，时间格式用点号
+    const vttContent = srtContent
+        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')
+        .replace(/^\d+\n/gm, ''); // 移除序号
+    return `WEBVTT\n\n${vttContent}`;
 }
 
 function downloadCurrentTranscript() {
@@ -711,32 +979,73 @@ function downloadCurrentTranscript() {
         return;
     }
 
-    const blob = new Blob([result.text], { type: 'text/plain;charset=utf-8' });
+    const format = document.getElementById('exportFormat').value;
+    let content, ext, mimeType;
+    
+    switch (format) {
+        case 'srt':
+            content = convertToSrt(result.text, result.words);
+            ext = 'srt';
+            mimeType = 'text/plain;charset=utf-8';
+            break;
+        case 'vtt':
+            content = convertToVtt(result.text, result.words);
+            ext = 'vtt';
+            mimeType = 'text/vtt;charset=utf-8';
+            break;
+        default:
+            content = result.text;
+            ext = 'txt';
+            mimeType = 'text/plain;charset=utf-8';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${result.fileName}.txt`;
+    a.download = `${result.fileName}.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    Logger.info(`下载: ${result.fileName}.txt`);
+    Logger.info(`下载: ${result.fileName}.${ext}`);
 }
 
 function downloadAllTranscripts() {
+    const format = document.getElementById('exportFormat').value;
+    
     Object.keys(transcriptionResults).forEach((index) => {
         const result = transcriptionResults[index];
-        const blob = new Blob([result.text], { type: 'text/plain;charset=utf-8' });
+        let content, ext, mimeType;
+        
+        switch (format) {
+            case 'srt':
+                content = convertToSrt(result.text, result.words);
+                ext = 'srt';
+                mimeType = 'text/plain;charset=utf-8';
+                break;
+            case 'vtt':
+                content = convertToVtt(result.text, result.words);
+                ext = 'vtt';
+                mimeType = 'text/vtt;charset=utf-8';
+                break;
+            default:
+                content = result.text;
+                ext = 'txt';
+                mimeType = 'text/plain;charset=utf-8';
+        }
+        
+        const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${result.fileName}.txt`;
+        a.download = `${result.fileName}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     });
-    Logger.info(`批量下载: ${Object.keys(transcriptionResults).length} 个文件`);
+    Logger.info(`批量下载: ${Object.keys(transcriptionResults).length} 个 ${format.toUpperCase()} 文件`);
 }
 
 
@@ -775,14 +1084,11 @@ document.getElementById('wsStartBtn').addEventListener('click', async () => {
     console.log('点击开始按钮');
     console.log('选中的音频来源:', audioSource ? audioSource.value : 'null');
     
-    if (!audioSource) {
-        alert('无法获取音频来源选项');
-        isProcessing = false;
-        return;
-    }
+    // 如果没有选中任何选项，默认使用麦克风
+    const sourceValue = audioSource ? audioSource.value : 'microphone';
     
     try {
-        if (audioSource.value === 'microphone') {
+        if (sourceValue === 'microphone') {
             console.log('执行麦克风录音');
             await startMicrophoneRecording();
         } else {
@@ -812,7 +1118,8 @@ async function startMicrophoneRecording() {
         
         document.getElementById('wsStartBtn').style.display = 'none';
         document.getElementById('wsStopBtn').style.display = 'inline-block';
-        document.getElementById('wsResult').innerHTML = '';
+        document.getElementById('wsFinalizeBtn').style.display = 'inline-block';
+        // 不清空历史消息，保留所有内容
         
         await connectWebSocket(apiKey, audioStream);
         
@@ -849,6 +1156,16 @@ async function startFileTranscription() {
     await connectWebSocket(apiKey, null, file);
 }
 
+// WebSocket 重连配置
+let wsReconnectAttempts = 0;
+const WS_MAX_RECONNECT = 3;
+const WS_RECONNECT_DELAY = 2000;
+let currentWs = null;
+let wsConfig = null;
+let wsFinalTokens = [];
+let wsAllSessionTokens = []; // 累积当前会话的所有 tokens
+let wsUserStopped = false;
+
 async function connectWebSocket(apiKey, stream, file) {
     const enableDiarization = document.getElementById('wsDiarization').checked;
     const enableLanguageId = document.getElementById('wsLanguageId').checked;
@@ -856,14 +1173,34 @@ async function connectWebSocket(apiKey, stream, file) {
     
     wsLog(`🔑 Key: ${apiKey.substring(0, 10)}...`);
     
+    // 保存配置用于重连
+    wsConfig = { apiKey, stream, file, enableDiarization, enableLanguageId, translationType };
+    wsReconnectAttempts = 0;
+    wsFinalTokens = [];
+    wsAllSessionTokens = [];
+    wsUserStopped = false;
+    
     document.getElementById('wsStartBtn').disabled = true;
-    document.getElementById('wsResult').textContent = '';
+    // 不清空历史消息，保留所有内容
+    
+    await doConnect();
+}
+
+async function doConnect() {
+    if (wsUserStopped) return;
+    
+    const { apiKey, stream, file, enableDiarization, enableLanguageId, translationType } = wsConfig;
     
     try {
-        const ws = new WebSocket('ws://localhost:8001/ws/transcribe');
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/transcribe`;
+        const ws = new WebSocket(wsUrl);
+        currentWs = ws;
+        currentWebSocket = ws; // 保存引用用于 Manual Finalization
         
         ws.onopen = async () => {
             wsLog('✅ WebSocket 连接成功');
+            wsReconnectAttempts = 0; // 连接成功，重置重连计数
             
             // 构建配置
             const config = {
@@ -874,6 +1211,27 @@ async function connectWebSocket(apiKey, stream, file) {
                 enable_language_identification: enableLanguageId,
                 enable_endpoint_detection: true
             };
+            
+            // 添加 Language Hints
+            const languageHints = Array.from(document.querySelectorAll('.ws-lang-hint:checked')).map(cb => cb.value);
+            if (languageHints.length > 0) {
+                config.language_hints = languageHints;
+                wsLog(`🌍 语言提示: ${languageHints.join(', ')}`);
+            } else {
+                wsLog(`🌍 语言提示: 自动检测所有语言`);
+            }
+            
+            // 添加 Context
+            const context = buildContextObject();
+            if (context) {
+                config.context = context;
+                const parts = [];
+                if (context.general) parts.push(`General(${context.general.length}项)`);
+                if (context.text) parts.push(`Text(${context.text.length}字)`);
+                if (context.terms) parts.push(`Terms(${context.terms.length}个)`);
+                if (context.translation_terms) parts.push(`TransTerms(${context.translation_terms.length}个)`);
+                wsLog(`📝 Context: ${parts.join(', ')}`);
+            }
             
             // 添加翻译配置
             if (translationType === 'one_way') {
@@ -928,8 +1286,6 @@ async function connectWebSocket(apiKey, stream, file) {
             }
         };
         
-        let finalTokens = [];
-        
         ws.onmessage = (event) => {
             console.log('收到 WebSocket 消息:', event.data.substring(0, 200));
             const response = JSON.parse(event.data);
@@ -937,22 +1293,22 @@ async function connectWebSocket(apiKey, stream, file) {
             if (response.error || response.error_code) {
                 const errorMsg = response.error || response.error_message || '未知错误';
                 
-                // 如果是超时错误，只记录日志，不关闭连接
                 if (response.error_code === 408) {
                     wsLog(`⚠️ 警告: ${errorMsg}（翻译处理较慢，继续等待...）`, 'warning');
                     console.warn('超时警告:', response);
-                    return; // 不关闭连接，继续等待
+                    return;
                 }
                 
-                // 其他错误才关闭连接
                 wsLog(`❌ 错误: ${errorMsg}`, 'error');
                 console.error('WebSocket 错误:', response);
                 ws.close();
                 return;
             }
             
-            if (response.tokens) {
+            if (response.tokens && response.tokens.length > 0) {
                 console.log('收到 tokens:', response.tokens.length);
+                
+                const finalTokens = [];
                 const nonFinalTokens = [];
                 
                 response.tokens.forEach(token => {
@@ -963,15 +1319,116 @@ async function connectWebSocket(apiKey, stream, file) {
                     }
                 });
                 
-                // 渲染结果
-                const html = renderTokens(finalTokens, nonFinalTokens);
-                document.getElementById('wsResult').innerHTML = html;
-                console.log('已更新显示，HTML 长度:', html.length);
+                // 累积保存所有 final tokens
+                finalTokens.forEach(token => {
+                    // 检查是否已存在（避免重复）
+                    const exists = wsAllSessionTokens.some(t => 
+                        t.start_ms === token.start_ms && t.end_ms === token.end_ms && t.text === token.text
+                    );
+                    if (!exists) {
+                        wsAllSessionTokens.push(token);
+                    }
+                });
+                
+                wsFinalTokens = finalTokens;
+                
+                // 初始化会话时间戳
+                if (!window.currentSessionTimestamp) {
+                    window.currentSessionTimestamp = new Date().toLocaleString('zh-CN', { 
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false 
+                    }).replace(/\//g, '-').replace(/,/g, '').replace(/ /g, '_');
+                }
+                
+                // 紧凑渲染：使用累积的所有 tokens + 当前 non-final
+                const resultDiv = document.getElementById('wsResult');
+                const segments = [];
+                let currentSeg = { speaker: null, lang: null, tokens: [] };
+                
+                // 显示累积的所有 tokens + 当前 non-final
+                const allTokens = [...wsAllSessionTokens, ...nonFinalTokens];
+                allTokens.forEach(token => {
+                    if (token.text?.trim() === '<end>') return;
+                    
+                    // 说话人切换或语言切换时分段
+                    const speakerChanged = token.speaker !== undefined && token.speaker !== currentSeg.speaker;
+                    const langChanged = token.language && token.language !== currentSeg.lang;
+                    
+                    if ((speakerChanged || langChanged) && currentSeg.tokens.length > 0) {
+                        segments.push({...currentSeg});
+                        currentSeg = { speaker: token.speaker, lang: token.language, tokens: [] };
+                    }
+                    
+                    // 初始化第一个 segment
+                    if (currentSeg.speaker === null) {
+                        currentSeg.speaker = token.speaker;
+                        currentSeg.lang = token.language;
+                    }
+                    
+                    currentSeg.tokens.push(token);
+                    currentSeg.lang = token.language || currentSeg.lang;
+                });
+                if (currentSeg.tokens.length > 0) segments.push(currentSeg);
+                
+                const finalHtml = segments.map(seg => {
+                    const speaker = seg.speaker !== null ? `<strong style="color: #667eea;">说话人${seg.speaker}:</strong> ` : '';
+                    
+                    // 动态分配颜色（最多5种清晰颜色）
+                    const colorPalette = ['#2563eb', '#059669', '#dc2626', '#f59e0b', '#7c3aed']; // 蓝、绿、红、橙、紫
+                    if (!window.langColorMap) window.langColorMap = {};
+                    if (seg.lang && !window.langColorMap[seg.lang]) {
+                        const usedColors = Object.values(window.langColorMap);
+                        const availableColor = colorPalette.find(c => !usedColors.includes(c)) || colorPalette[0];
+                        window.langColorMap[seg.lang] = availableColor;
+                    }
+                    const langColor = seg.lang ? window.langColorMap[seg.lang] : '#6b7280';
+                    const lang = seg.lang ? `<span style="background: ${langColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">[${seg.lang.toUpperCase()}]</span> ` : '';
+                    const text = seg.tokens.map(t => {
+                        const conf = t.confidence !== undefined ? t.confidence : 1.0;
+                        const textContent = escapeHtml(t.text || '');
+                        
+                        // 非 final 用灰色斜体
+                        if (!t.is_final) {
+                            return `<span style="color: #999; font-style: italic;">${textContent}</span>`;
+                        }
+                        
+                        // 低置信度高亮
+                        if (conf < 0.7) {
+                            return `<span style="background: #fff3cd; padding: 1px 3px;" title="置信度: ${(conf*100).toFixed(1)}%">${textContent}</span>`;
+                        }
+                        
+                        return textContent;
+                    }).join('');
+                    return `<div style="margin: 2px 0; color: #333;">${speaker}${lang}${text}</div>`;
+                }).join('');
+                
+                resultDiv.innerHTML = finalHtml;
+                console.log('渲染完成，finalHtml 长度:', finalHtml.length);
+                console.log('segments 数量:', segments.length);
+                
+                // 显示非 final tokens（临时，灰色斜体）
+                const tempText = nonFinalTokens.map(t => t.text || '').join('');
+                if (tempText) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.style.cssText = 'color: #999; font-style: italic; margin-top: 8px; border-top: 1px dashed #ddd; padding-top: 8px;';
+                    tempDiv.textContent = '...' + tempText;
+                    resultDiv.appendChild(tempDiv);
+                }
             }
+            
             
             if (response.finished) {
                 wsLog('✅ 转录完成！', 'success');
-                console.log('转录完成');
+                console.log('=== 转录完成 ===');
+                console.log('wsAllSessionTokens 数量:', wsAllSessionTokens.length);
+                
+                // 显示下载按钮
+                if (wsAllSessionTokens.length > 0) {
+                    document.getElementById('wsDownloadBtn').style.display = 'inline-block';
+                    wsLog('💾 可以下载转录结果了');
+                }
+                
+                wsUserStopped = true;
                 ws.close();
             }
         };
@@ -981,18 +1438,38 @@ async function connectWebSocket(apiKey, stream, file) {
             console.error(error);
         };
         
-        ws.onclose = () => {
+        ws.onclose = (event) => {
             wsLog('🔌 连接已关闭');
-            stopRecording();
+            
+            // 判断是否需要重连（非用户主动停止、非正常完成、还有重连次数）
+            if (!wsUserStopped && wsReconnectAttempts < WS_MAX_RECONNECT && wsConfig.stream) {
+                wsReconnectAttempts++;
+                wsLog(`🔄 网络中断，${WS_RECONNECT_DELAY/1000}秒后自动重连 (${wsReconnectAttempts}/${WS_MAX_RECONNECT})...`, 'warning');
+                setTimeout(() => doConnect(), WS_RECONNECT_DELAY);
+            } else {
+                stopRecording();
+            }
         };
         
     } catch (error) {
         wsLog(`❌ 错误: ${error.message}`, 'error');
-        stopRecording();
+        
+        // 连接失败也尝试重连
+        if (!wsUserStopped && wsReconnectAttempts < WS_MAX_RECONNECT && wsConfig.stream) {
+            wsReconnectAttempts++;
+            wsLog(`🔄 连接失败，${WS_RECONNECT_DELAY/1000}秒后重试 (${wsReconnectAttempts}/${WS_MAX_RECONNECT})...`, 'warning');
+            setTimeout(() => doConnect(), WS_RECONNECT_DELAY);
+        } else {
+            stopRecording();
+        }
     }
 }
 
 function stopRecording() {
+    wsUserStopped = true; // 标记用户主动停止，防止重连
+    if (currentWs && currentWs.readyState === WebSocket.OPEN) {
+        currentWs.close();
+    }
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
     }
@@ -1003,69 +1480,118 @@ function stopRecording() {
     document.getElementById('wsStartBtn').style.display = 'inline-block';
     document.getElementById('wsStartBtn').disabled = false;
     document.getElementById('wsStopBtn').style.display = 'none';
+    document.getElementById('wsFinalizeBtn').style.display = 'none';
+    currentWebSocket = null;
     wsLog('⏹️ 录音已停止');
 }
 
-// 渲染 tokens 为可读 HTML
+// 渲染 tokens 为可读 HTML - 原文和翻译分行显示 + 置信度
 function renderTokens(finalTokens, nonFinalTokens) {
-    const htmlParts = [];
-    let currentSpeaker = null;
-    let currentLanguage = null;
-    
     const allTokens = [...finalTokens, ...nonFinalTokens];
     
     // 语言颜色映射
     const languageColors = {
-        'zh': '#2563eb',  // 蓝色 - 中文
-        'en': '#059669',  // 绿色 - 英语
-        'es': '#dc2626',  // 红色 - 西班牙语
-        'fr': '#7c3aed',  // 紫色 - 法语
-        'de': '#ea580c',  // 橙色 - 德语
-        'ja': '#db2777',  // 粉色 - 日语
-        'ko': '#0891b2',  // 青色 - 韩语
-        'ar': '#65a30d',  // 黄绿 - 阿拉伯语
-        'ru': '#be123c',  // 深红 - 俄语
-        'pt': '#0284c7',  // 天蓝 - 葡萄牙语
-        'default': '#1f2937'  // 深灰 - 默认
+        'zh': '#2563eb', 'en': '#059669', 'es': '#dc2626', 'fr': '#7c3aed',
+        'de': '#ea580c', 'ja': '#db2777', 'ko': '#0891b2', 'ar': '#65a30d',
+        'ru': '#be123c', 'pt': '#0284c7', 'default': '#1f2937'
     };
     
-    for (const token of allTokens) {
-        const text = token.text || '';
-        const speaker = token.speaker;
-        const language = token.language;
-        const isTranslation = token.translation_status === 'translation';
-        const isFinal = token.is_final;
-        
-        // 说话人改变
-        if (speaker !== undefined && speaker !== currentSpeaker) {
-            if (currentSpeaker !== null) {
-                htmlParts.push('<br><br>');
+    // 先分离原文和翻译 tokens
+    const originalTokens = allTokens.filter(t => t.translation_status !== 'translation');
+    const translationTokens = allTokens.filter(t => t.translation_status === 'translation');
+    
+    // 渲染带置信度的文本
+    function renderTokensWithConfidence(tokens) {
+        return tokens.map(token => {
+            const text = token.text || '';
+            if (text.trim() === '<end>') return '';
+            
+            const confidence = token.confidence !== undefined ? token.confidence : 1.0;
+            const isLowConfidence = confidence < 0.7;
+            
+            // 低置信度高亮显示
+            if (isLowConfidence && token.is_final) {
+                return `<span style="background: rgba(255, 152, 0, 0.3); padding: 2px 4px; border-radius: 3px; border-bottom: 2px dotted #FF9800;" title="置信度: ${(confidence * 100).toFixed(1)}%">${escapeHtml(text)}</span>`;
             }
-            currentSpeaker = speaker;
-            currentLanguage = null;
-            htmlParts.push(`<div style="font-weight: bold; color: #1f2937; margin-top: 10px;">👤 说话人 ${currentSpeaker}:</div>`);
+            
+            return escapeHtml(text);
+        }).join('');
+    }
+    
+    // 按时间间隔分句（间隔 > 800ms 认为是新句子）
+    const GAP_THRESHOLD = 800;
+    
+    function splitIntoSentences(tokens) {
+        const sentences = [];
+        let current = { speaker: null, lang: null, tokens: [], startMs: 0 };
+        
+        for (const token of tokens) {
+            const text = token.text || '';
+            if (text.trim() === '<end>') continue;
+            
+            const gap = current.startMs > 0 ? (token.start_ms - current.startMs) : 0;
+            const speakerChanged = token.speaker !== undefined && token.speaker !== current.speaker;
+            
+            // 新句子条件：说话人变化 或 时间间隔大
+            if (speakerChanged || (gap > GAP_THRESHOLD && current.tokens.length > 0)) {
+                if (current.tokens.length > 0) {
+                    sentences.push({...current});
+                }
+                current = { speaker: token.speaker || current.speaker, lang: token.language, tokens: [], startMs: token.start_ms };
+            }
+            
+            current.tokens.push(token);
+            current.lang = token.language || current.lang;
+            current.speaker = token.speaker !== undefined ? token.speaker : current.speaker;
+            if (token.end_ms) current.startMs = token.end_ms;
         }
         
-        // 语言改变
-        if (language !== undefined && language !== currentLanguage) {
-            currentLanguage = language;
-            const color = languageColors[language] || languageColors['default'];
-            const prefix = isTranslation ? '🌐 [翻译] ' : '';
-            const langLabel = `${prefix}[${language.toUpperCase()}]`;
-            htmlParts.push(`<span style="color: ${color}; font-weight: 600; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; margin: 0 4px;">${langLabel}</span> `);
+        if (current.tokens.length > 0) {
+            sentences.push(current);
+        }
+        return sentences;
+    }
+    
+    const origSentences = splitIntoSentences(originalTokens);
+    const transSentences = splitIntoSentences(translationTokens);
+    
+    // 渲染HTML - 原文和翻译配对显示
+    const htmlParts = [];
+    let lastSpeaker = null;
+    const maxLen = Math.max(origSentences.length, transSentences.length);
+    
+    for (let i = 0; i < maxLen; i++) {
+        const orig = origSentences[i];
+        const trans = transSentences[i];
+        
+        // 说话人标签
+        const speaker = orig?.speaker || trans?.speaker;
+        if (speaker !== null && speaker !== lastSpeaker) {
+            lastSpeaker = speaker;
+            htmlParts.push(`<div style="font-weight: bold; color: #1f2937; margin: 16px 0 10px 0; font-size: 15px;">👤 说话人 ${speaker}:</div>`);
         }
         
-        // 检查是否是 <end> token
-        if (text.trim() === '<end>') {
-            htmlParts.push('<br>');
-            continue;
+        // 原文行（带置信度）
+        if (orig && orig.tokens.length > 0) {
+            const lang = orig.lang || 'zh';
+            const color = languageColors[lang] || languageColors['default'];
+            const textHtml = renderTokensWithConfidence(orig.tokens);
+            htmlParts.push(`<div style="margin: 8px 0 4px 0; line-height: 1.8;">
+                <span style="color: white; background: ${color}; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${lang.toUpperCase()}</span>
+                <span style="color: ${color}; margin-left: 8px;">${textHtml}</span>
+            </div>`);
         }
         
-        // 文本内容
-        const color = languageColors[currentLanguage] || languageColors['default'];
-        const opacity = isFinal ? '1' : '0.6';
-        const fontWeight = isFinal ? '500' : '400';
-        htmlParts.push(`<span style="color: ${color}; opacity: ${opacity}; font-weight: ${fontWeight};">${escapeHtml(text)}</span>`);
+        // 翻译行
+        if (trans && trans.tokens.length > 0) {
+            const lang = trans.lang || 'en';
+            const color = languageColors[lang] || languageColors['default'];
+            const textHtml = renderTokensWithConfidence(trans.tokens);
+            htmlParts.push(`<div style="margin: 4px 0 16px 28px; line-height: 1.8; padding-left: 12px; border-left: 3px solid ${color}40;">
+                <span style="color: white; background: ${color}; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">🌐 ${lang.toUpperCase()}</span>
+                <span style="color: ${color}; margin-left: 8px;">${textHtml}</span>
+            </div>`);
+        }
     }
     
     return htmlParts.join('');
@@ -1077,3 +1603,239 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// ==================== Context 编辑器功能 ====================
+
+// Context 数据存储
+let contextData = {
+    general: [],
+    text: '',
+    terms: [],
+    translation_terms: []
+};
+
+// General 部分
+document.getElementById('addContextGeneral').addEventListener('click', () => {
+    const key = document.getElementById('contextGeneralKey').value.trim();
+    const value = document.getElementById('contextGeneralValue').value.trim();
+    
+    if (!key || !value) {
+        alert('请输入 Key 和 Value');
+        return;
+    }
+    
+    contextData.general.push({ key, value });
+    document.getElementById('contextGeneralKey').value = '';
+    document.getElementById('contextGeneralValue').value = '';
+    renderContextGeneral();
+});
+
+function renderContextGeneral() {
+    const list = document.getElementById('contextGeneralList');
+    list.innerHTML = contextData.general.map((item, index) => `
+        <div style="display: flex; gap: 10px; align-items: center; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 8px;">
+            <span style="color: #4CAF50; font-weight: 600;">${item.key}:</span>
+            <span style="color: #fff; flex: 1;">${item.value}</span>
+            <button onclick="removeContextGeneral(${index})" class="btn-small" style="background: #f44336; color: white;">删除</button>
+        </div>
+    `).join('');
+}
+
+window.removeContextGeneral = function(index) {
+    contextData.general.splice(index, 1);
+    renderContextGeneral();
+};
+
+// Text 部分
+document.getElementById('contextText').addEventListener('input', (e) => {
+    contextData.text = e.target.value.trim();
+});
+
+// Terms 部分
+document.getElementById('addContextTerm').addEventListener('click', () => {
+    const term = document.getElementById('contextTermInput').value.trim();
+    if (!term) return;
+    
+    if (!contextData.terms.includes(term)) {
+        contextData.terms.push(term);
+        document.getElementById('contextTermInput').value = '';
+        renderContextTerms();
+    }
+});
+
+document.getElementById('contextTermInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        document.getElementById('addContextTerm').click();
+    }
+});
+
+function renderContextTerms() {
+    const list = document.getElementById('contextTermsList');
+    list.innerHTML = contextData.terms.map((term, index) => `
+        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; background: rgba(76, 175, 80, 0.3); border: 1px solid #4CAF50; border-radius: 16px; color: #fff;">
+            ${term}
+            <button onclick="removeContextTerm(${index})" style="background: none; border: none; color: #fff; cursor: pointer; font-size: 18px; padding: 0; line-height: 1; font-weight: bold;">×</button>
+        </span>
+    `).join('');
+}
+
+window.removeContextTerm = function(index) {
+    contextData.terms.splice(index, 1);
+    renderContextTerms();
+};
+
+// Translation Terms 部分
+document.getElementById('addContextTranslation').addEventListener('click', () => {
+    const source = document.getElementById('contextTransSource').value.trim();
+    const target = document.getElementById('contextTransTarget').value.trim();
+    
+    if (!source || !target) {
+        alert('请输入原文和译文');
+        return;
+    }
+    
+    contextData.translation_terms.push({ source, target });
+    document.getElementById('contextTransSource').value = '';
+    document.getElementById('contextTransTarget').value = '';
+    renderContextTranslations();
+});
+
+function renderContextTranslations() {
+    const list = document.getElementById('contextTranslationList');
+    list.innerHTML = contextData.translation_terms.map((item, index) => `
+        <div style="display: flex; gap: 10px; align-items: center; padding: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 8px;">
+            <span style="color: #2196F3; font-weight: 600;">${item.source}</span>
+            <span style="color: #fff;">→</span>
+            <span style="color: #FF9800; font-weight: 600;">${item.target}</span>
+            <button onclick="removeContextTranslation(${index})" class="btn-small" style="background: #f44336; color: white; margin-left: auto;">删除</button>
+        </div>
+    `).join('');
+}
+
+window.removeContextTranslation = function(index) {
+    contextData.translation_terms.splice(index, 1);
+    renderContextTranslations();
+};
+
+// Context 模板管理
+const CONTEXT_TEMPLATES_KEY = 'soniox_context_templates';
+
+document.getElementById('saveContextTemplate').addEventListener('click', () => {
+    const name = prompt('请输入模板名称：');
+    if (!name) return;
+    
+    const templates = JSON.parse(localStorage.getItem(CONTEXT_TEMPLATES_KEY) || '{}');
+    templates[name] = JSON.parse(JSON.stringify(contextData));
+    localStorage.setItem(CONTEXT_TEMPLATES_KEY, JSON.stringify(templates));
+    
+    alert(`模板 "${name}" 已保存`);
+    wsLog(`💾 Context 模板已保存: ${name}`);
+});
+
+document.getElementById('loadContextTemplate').addEventListener('click', () => {
+    const templates = JSON.parse(localStorage.getItem(CONTEXT_TEMPLATES_KEY) || '{}');
+    const names = Object.keys(templates);
+    
+    if (names.length === 0) {
+        alert('没有保存的模板');
+        return;
+    }
+    
+    const name = prompt(`请选择模板：\n${names.map((n, i) => `${i + 1}. ${n}`).join('\n')}\n\n输入模板名称或序号：`);
+    if (!name) return;
+    
+    const selectedName = isNaN(name) ? name : names[parseInt(name) - 1];
+    
+    if (templates[selectedName]) {
+        contextData = JSON.parse(JSON.stringify(templates[selectedName]));
+        document.getElementById('contextText').value = contextData.text;
+        renderContextGeneral();
+        renderContextTerms();
+        renderContextTranslations();
+        alert(`模板 "${selectedName}" 已加载`);
+        wsLog(`📂 Context 模板已加载: ${selectedName}`);
+    } else {
+        alert('模板不存在');
+    }
+});
+
+// 构建 Context 对象
+function buildContextObject() {
+    const context = {};
+    
+    if (contextData.general.length > 0) {
+        context.general = contextData.general;
+    }
+    
+    if (contextData.text) {
+        context.text = contextData.text;
+    }
+    
+    if (contextData.terms.length > 0) {
+        context.terms = contextData.terms;
+    }
+    
+    if (contextData.translation_terms.length > 0) {
+        context.translation_terms = contextData.translation_terms;
+    }
+    
+    return Object.keys(context).length > 0 ? context : null;
+}
+
+// ==================== Manual Finalization ====================
+
+let currentWebSocket = null;
+
+document.getElementById('wsFinalizeBtn').addEventListener('click', () => {
+    if (currentWebSocket && currentWebSocket.readyState === WebSocket.OPEN) {
+        currentWebSocket.send(JSON.stringify({ type: 'finalize' }));
+        wsLog('⚡ 已发送立即终结指令', 'info');
+    }
+});
+
+// ==================== WebSocket 转录下载功能 ====================
+
+
+
+
+
+// WebSocket 结果下载和清空
+document.getElementById('wsDownloadBtn').addEventListener('click', () => {
+    const timestamp = new Date().toLocaleString('zh-CN', { 
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false 
+    }).replace(/\//g, '-').replace(/,/g, '').replace(/ /g, '_');
+    
+    const text = wsAllSessionTokens.map(t => {
+        const speaker = t.speaker !== null ? `[说话人 ${t.speaker}] ` : '';
+        const lang = t.language ? `[${t.language.toUpperCase()}] ` : '';
+        return speaker + lang + (t.text || '');
+    }).join('');
+    
+    if (!text) {
+        alert('没有可下载的内容');
+        return;
+    }
+    
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `转录_${timestamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    wsLog(`💾 已下载: 转录_${timestamp}.txt`);
+});
+
+document.getElementById('wsClearResult').addEventListener('click', () => {
+    if (confirm('确定要清空所有转录内容吗？')) {
+        document.getElementById('wsResult').innerHTML = '';
+        wsAllSessionTokens = [];
+        wsFinalTokens = [];
+        document.getElementById('wsDownloadBtn').style.display = 'none';
+        wsLog('🗑️ 转录内容已清空');
+    }
+});
