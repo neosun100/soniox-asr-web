@@ -4,19 +4,40 @@
 
 ### 拉取镜像
 
+**ARM64 架构（Mac M1/M2/M3）：**
 ```bash
+docker pull neosun/soniox-asr-web:v4.0.0
+# 或
 docker pull neosun/soniox-asr-web:latest
+```
+
+**AMD64/x86_64 架构（Linux 服务器）：**
+```bash
+docker pull neosun/soniox-asr-web:v4.0.0-amd64
+# 或
+docker pull neosun/soniox-asr-web:latest-amd64
 ```
 
 ### 运行容器
 
+**ARM64：**
 ```bash
 docker run -d \
   --name soniox-asr \
   -p 8000:8000 \
   -p 8001:8001 \
   --restart always \
-  neosun/soniox-asr-web:latest
+  neosun/soniox-asr-web:v4.0.0
+```
+
+**AMD64：**
+```bash
+docker run -d \
+  --name soniox-asr \
+  -p 8000:8000 \
+  -p 8001:8001 \
+  --restart always \
+  neosun/soniox-asr-web:v4.0.0-amd64
 ```
 
 ### 访问服务
@@ -56,8 +77,13 @@ docker run -d \
 
 ## 镜像标签
 
+**ARM64 架构（Mac M1/M2/M3）：**
 - `neosun/soniox-asr-web:latest` - 最新稳定版
-- `neosun/soniox-asr-web:v1.1.0` - v1.1.0 版本
+- `neosun/soniox-asr-web:v4.0.0` - v4.0.0 版本
+
+**AMD64/x86_64 架构（Linux 服务器）：**
+- `neosun/soniox-asr-web:latest-amd64` - 最新稳定版
+- `neosun/soniox-asr-web:v4.0.0-amd64` - v4.0.0 版本
 
 ## 环境变量
 
