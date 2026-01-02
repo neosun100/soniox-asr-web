@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "soniox-asr": {
+      "command": "python3",
+      "args": ["/path/to/soniox-asr-web/mcp_server.py"],
+      "env": {
+        "SONIOX_API_KEY": "your_api_key_here"
+      }
+    }
+  }
+}

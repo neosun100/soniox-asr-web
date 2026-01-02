@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import httpx
@@ -17,6 +18,9 @@ logger.add(sys.stdout, format="<green>{time:HH:mm:ss}</green> | <level>{level: <
 API_VERSION = "1.1.0"
 BUILD_DATE = "2026-01-02"
 
+# Soniox API 基础 URL
+SONIOX_API_BASE = "https://api.soniox.com/v1"
+
 # Pydantic 响应模型
 class HealthResponse(BaseModel):
     status: str
@@ -26,6 +30,46 @@ class VersionResponse(BaseModel):
     version: str
     build_date: str
     api_title: str
+
+class FileInfo(BaseModel):
+    id: str
+    filename: str
+    size: int
+    created_at: str
+
+class FilesListResponse(BaseModel):
+    files: List[FileInfo]
+    next_page_cursor: Optional[str] = None
+
+class FileUrlResponse(BaseModel):
+    url: str
+    expires_at: Optional[str] = None
+    
+    class Config:
+        extra = "allow"
+
+class TranscriptionInfo(BaseModel):
+    id: str
+    status: str
+    file_id: str
+    model: str
+    created_at: str
+    audio_duration_ms: Optional[int] = None
+
+class TranscriptionsListResponse(BaseModel):
+    transcriptions: List[TranscriptionInfo]
+    next_page_cursor: Optional[str] = None
+
+class ModelInfo(BaseModel):
+    name: str
+    type: Optional[str] = None
+    description: Optional[str] = None
+    
+    class Config:
+        extra = "allow"  # 允许额外字段
+
+class ModelsListResponse(BaseModel):
+    models: List[dict]  # 使用 dict 避免严格验证
 
 class WordTimestamp(BaseModel):
     text: str
@@ -73,7 +117,9 @@ app = FastAPI(
 3. 或使用 WebSocket `/ws/transcribe` 进行实时转录
     """,
     contact={"name": "Neo Sun", "email": "neosun808@gmail.com"},
-    license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"}
+    license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
+    redoc_url="/redoc",
+    docs_url="/docs"
 )
 
 app.add_middleware(
@@ -337,6 +383,207 @@ async def websocket_transcribe(websocket: WebSocket):
             await websocket.close()
         except:
             pass
+
+# ==================== Files API ====================
+
+@app.get("/api/files", tags=["Files API"], summary="列出文件", response_model=FilesListResponse)
+async def list_files(
+    api_key: str = Query(..., description="Soniox API Key"),
+    limit: int = Query(100, ge=1, le=1000, description="返回文件数量"),
+    cursor: Optional[str] = Query(None, description="分页游标")
+):
+    """列出所有已上传的文件"""
+    try:
+        params = {"limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{SONIOX_API_BASE}/files",
+                headers={"Authorization": f"Bearer {api_key}"},
+                params=params
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"列出文件失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/files/{file_id}", tags=["Files API"], summary="文件详情", response_model=FileInfo)
+async def get_file(
+    file_id: str,
+    api_key: str = Query(..., description="Soniox API Key")
+):
+    """获取文件详细信息"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{SONIOX_API_BASE}/files/{file_id}",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"获取文件详情失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/files/{file_id}/url", tags=["Files API"], summary="文件下载链接", response_model=FileUrlResponse)
+async def get_file_url(
+    file_id: str,
+    api_key: str = Query(..., description="Soniox API Key")
+):
+    """获取文件下载链接"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{SONIOX_API_BASE}/files/{file_id}/url",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"获取文件链接失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/files/{file_id}", tags=["Files API"], summary="删除文件")
+async def delete_file(
+    file_id: str,
+    api_key: str = Query(..., description="Soniox API Key")
+):
+    """删除已上传的文件"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.delete(
+                f"{SONIOX_API_BASE}/files/{file_id}",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            
+            if response.status_code != 204:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return {"success": True, "message": "文件已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"删除文件失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== Transcriptions API ====================
+
+@app.get("/api/transcriptions", tags=["Transcriptions API"], summary="列出转录", response_model=TranscriptionsListResponse)
+async def list_transcriptions(
+    api_key: str = Query(..., description="Soniox API Key"),
+    limit: int = Query(100, ge=1, le=1000, description="返回转录数量"),
+    cursor: Optional[str] = Query(None, description="分页游标")
+):
+    """列出所有转录任务"""
+    try:
+        params = {"limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{SONIOX_API_BASE}/transcriptions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                params=params
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"列出转录失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/transcriptions/{transcription_id}", tags=["Transcriptions API"], summary="转录详情", response_model=TranscriptionInfo)
+async def get_transcription(
+    transcription_id: str,
+    api_key: str = Query(..., description="Soniox API Key")
+):
+    """获取转录任务详情"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{SONIOX_API_BASE}/transcriptions/{transcription_id}",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"获取转录详情失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/transcriptions/{transcription_id}", tags=["Transcriptions API"], summary="删除转录")
+async def delete_transcription(
+    transcription_id: str,
+    api_key: str = Query(..., description="Soniox API Key")
+):
+    """删除转录任务"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.delete(
+                f"{SONIOX_API_BASE}/transcriptions/{transcription_id}",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            
+            if response.status_code != 204:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return {"success": True, "message": "转录已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"删除转录失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== Models API ====================
+
+@app.get("/api/models", tags=["Models API"], summary="列出模型", response_model=ModelsListResponse)
+async def list_models(
+    api_key: str = Query(..., description="Soniox API Key")
+):
+    """列出所有可用模型"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{SONIOX_API_BASE}/models",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"列出模型失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
