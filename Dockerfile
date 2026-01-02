@@ -27,8 +27,8 @@ COPY clear-storage.html /usr/share/nginx/html/
 COPY screenshot-rest-api.png /usr/share/nginx/html/
 COPY screenshot-websocket.png /usr/share/nginx/html/
 
-# 复制 Nginx 配置
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# 复制 Nginx 配置（all-in-one 模式）
+COPY nginx-allinone.conf /etc/nginx/conf.d/default.conf
 
 # 创建启动脚本
 RUN echo '#!/bin/bash\n\
