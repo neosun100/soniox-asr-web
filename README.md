@@ -172,7 +172,7 @@ System automatically rotates between multiple keys to avoid single-point rate li
 
 1. Switch to "Real-time Speech" tab
 2. Configure recognition parameters:
-   - Model: `stt-rt-preview` (real-time model)
+   - Model: `stt-rt-v4` (real-time model)
    - Audio Format: `auto` (auto-detect)
    - Speaker Diarization: On/Off
    - Endpoint Detection: On/Off
@@ -247,6 +247,7 @@ Different languages displayed in different colors:
 |-----------|------|----------|-------------|
 | file | File | ✅ | Audio file |
 | api_keys | String | ✅ | Comma-separated API Keys |
+| model | String | ❌ | Model name (default: `stt-async-v4`) |
 | enable_diarization | Boolean | ❌ | Enable speaker diarization (default false) |
 
 **cURL Example**:
@@ -255,6 +256,7 @@ Different languages displayed in different colors:
 curl -X POST "http://localhost:8001/transcribe" \
   -F "file=@audio.mp3" \
   -F "api_keys=YOUR_KEY1,YOUR_KEY2" \
+  -F "model=stt-async-v4" \
   -F "enable_diarization=false"
 ```
 
@@ -320,18 +322,31 @@ if result['success']:
 ```json
 {
   "api_key": "YOUR_API_KEY",
-  "model": "stt-rt-preview",
+  "model": "stt-rt-v4",
   "audio_format": "auto",
   "enable_speaker_diarization": false,
-  "enable_endpoint_detection": false,
+  "enable_endpoint_detection": true,
   "enable_language_identification": true,
+  "max_endpoint_delay_ms": 1000,
   "language_hints": ["en", "zh"],
+  "language_hints_strict": false,
+  "client_reference_id": "optional-tracking-id",
   "translation": {
     "type": "one_way",
     "target_language": "zh"
   }
 }
 ```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| api_key | String | — | Soniox API Key (required) |
+| model | String | `stt-rt-v4` | Real-time model |
+| audio_format | String | `auto` | Audio format |
+| enable_endpoint_detection | Boolean | `true` | Detect end of speech |
+| max_endpoint_delay_ms | Integer | `1000` | End-of-speech delay (500-3000ms, v4 only) |
+| language_hints_strict | Boolean | `false` | Strict language mode (v4 only) |
+| client_reference_id | String | — | Client tracking ID (v4 only) |
 
 **JavaScript Example**:
 
@@ -343,7 +358,7 @@ ws.onopen = async () => {
     // 1. Send configuration
     ws.send(JSON.stringify({
         api_key: 'YOUR_API_KEY',
-        model: 'stt-rt-preview',
+        model: 'stt-rt-v4',
         audio_format: 'auto',
         enable_speaker_diarization: true
     }));

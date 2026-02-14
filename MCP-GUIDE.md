@@ -86,7 +86,7 @@ echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_model
 ```
 User: 帮我列出 Soniox 的所有可用模型
 Claude: [调用 list_models 工具]
-返回: stt-rt-v3, stt-async-v3, ...
+返回: stt-rt-v4, stt-async-v4, ...
 
 User: 帮我转录这个文件 /path/to/audio.mp3
 Claude: [调用 transcribe_file 工具]
