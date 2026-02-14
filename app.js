@@ -65,12 +65,6 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // 调试：监听 wsFile 的点击
     const wsFileInput = document.getElementById('wsFile');
-    if (wsFileInput) {
-        wsFileInput.addEventListener('click', (e) => {
-            console.log('wsFile 被点击了！');
-            console.trace('调用堆栈:');
-        });
-    }
 });
 
 // 日志系统
@@ -765,7 +759,7 @@ async function uploadSingleFile(apiKey, file) {
 
     // 获取模型选择
     const modelSelect = document.getElementById('restModel');
-    const model = modelSelect ? modelSelect.value : 'stt-async-v3';
+    const model = modelSelect ? modelSelect.value : 'stt-async-v4';
 
     // 获取语言提示（复选框）
     const languageHints = Array.from(document.querySelectorAll('.rest-lang-hint:checked')).map(cb => cb.value);
@@ -1075,24 +1069,19 @@ let isProcessing = false;
 
 document.getElementById('wsStartBtn').addEventListener('click', async () => {
     if (isProcessing) {
-        console.log('正在处理中，忽略点击');
         return;
     }
     
     isProcessing = true;
     const audioSource = document.querySelector('input[name="audioSource"]:checked');
-    console.log('点击开始按钮');
-    console.log('选中的音频来源:', audioSource ? audioSource.value : 'null');
     
     // 如果没有选中任何选项，默认使用麦克风
     const sourceValue = audioSource ? audioSource.value : 'microphone';
     
     try {
         if (sourceValue === 'microphone') {
-            console.log('执行麦克风录音');
             await startMicrophoneRecording();
         } else {
-            console.log('执行文件上传');
             await startFileTranscription();
         }
     } finally {
@@ -1130,15 +1119,10 @@ async function startMicrophoneRecording() {
 }
 
 async function startFileTranscription() {
-    console.log('========== startFileTranscription 被调用 ==========');
-    console.trace('调用堆栈:');
     const fileInput = document.getElementById('wsFile');
-    console.log('fileInput:', fileInput);
     const file = fileInput ? fileInput.files[0] : null;
-    console.log('file:', file);
     
     if (!file) {
-        console.log('========== 没有选择文件，显示提示 ==========');
         alert('请选择音频文件');
         return;
     }
@@ -1205,18 +1189,34 @@ async function doConnect() {
             // 构建配置
             const config = {
                 api_key: apiKey,
-                model: 'stt-rt-v3',
+                model: 'stt-rt-v4',
                 audio_format: 'auto',
                 enable_speaker_diarization: enableDiarization,
                 enable_language_identification: enableLanguageId,
                 enable_endpoint_detection: true
             };
             
+            // 添加 max_endpoint_delay_ms（v4 新参数）
+            const endpointDelayInput = document.getElementById('maxEndpointDelay');
+            if (endpointDelayInput) {
+                const delayVal = parseInt(endpointDelayInput.value);
+                if (delayVal >= 500 && delayVal <= 3000) {
+                    config.max_endpoint_delay_ms = delayVal;
+                }
+            }
+            
             // 添加 Language Hints
             const languageHints = Array.from(document.querySelectorAll('.ws-lang-hint:checked')).map(cb => cb.value);
             if (languageHints.length > 0) {
                 config.language_hints = languageHints;
-                wsLog(`🌍 语言提示: ${languageHints.join(', ')}`);
+                
+                // 添加 language_hints_strict
+                const strictCheckbox = document.getElementById('wsLanguageStrict');
+                if (strictCheckbox && strictCheckbox.checked) {
+                    config.language_hints_strict = true;
+                }
+                
+                wsLog(`🌍 语言提示: ${languageHints.join(', ')}${strictCheckbox && strictCheckbox.checked ? ' (严格模式)' : ''}`);
             } else {
                 wsLog(`🌍 语言提示: 自动检测所有语言`);
             }
@@ -1287,7 +1287,6 @@ async function doConnect() {
         };
         
         ws.onmessage = (event) => {
-            console.log('收到 WebSocket 消息:', event.data.substring(0, 200));
             const response = JSON.parse(event.data);
             
             if (response.error || response.error_code) {
@@ -1295,18 +1294,15 @@ async function doConnect() {
                 
                 if (response.error_code === 408) {
                     wsLog(`⚠️ 警告: ${errorMsg}（翻译处理较慢，继续等待...）`, 'warning');
-                    console.warn('超时警告:', response);
                     return;
                 }
                 
                 wsLog(`❌ 错误: ${errorMsg}`, 'error');
-                console.error('WebSocket 错误:', response);
                 ws.close();
                 return;
             }
             
             if (response.tokens && response.tokens.length > 0) {
-                console.log('收到 tokens:', response.tokens.length);
                 
                 const finalTokens = [];
                 const nonFinalTokens = [];
@@ -1406,8 +1402,6 @@ async function doConnect() {
                 }).join('');
                 
                 resultDiv.innerHTML = finalHtml;
-                console.log('渲染完成，finalHtml 长度:', finalHtml.length);
-                console.log('segments 数量:', segments.length);
                 
                 // 显示非 final tokens（临时，灰色斜体）
                 const tempText = nonFinalTokens.map(t => t.text || '').join('');
@@ -1422,8 +1416,6 @@ async function doConnect() {
             
             if (response.finished) {
                 wsLog('✅ 转录完成！', 'success');
-                console.log('=== 转录完成 ===');
-                console.log('wsAllSessionTokens 数量:', wsAllSessionTokens.length);
                 
                 // 显示下载按钮
                 if (wsAllSessionTokens.length > 0) {
@@ -1438,7 +1430,6 @@ async function doConnect() {
         
         ws.onerror = (error) => {
             wsLog(`❌ WebSocket 错误`, 'error');
-            console.error(error);
         };
         
         ws.onclose = (event) => {

@@ -15,8 +15,8 @@ logger.remove()
 logger.add(sys.stdout, format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}", level="DEBUG")
 
 # 版本信息
-API_VERSION = "4.0.0"
-BUILD_DATE = "2026-01-03"
+API_VERSION = "5.0.0"
+BUILD_DATE = "2026-02-14"
 
 # Soniox API 基础 URL
 SONIOX_API_BASE = "https://api.soniox.com/v1"
@@ -175,7 +175,8 @@ async def transcribe_audio(
         headers = {"Authorization": f"Bearer {api_key}"}
         
         logger.info("步骤 1/4: 上传文件...")
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        # 上传超时设长（大文件上传可能很慢）
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0)) as client:
             files = {"file": (file.filename, audio_data, "audio/wav")}
             upload_resp = await client.post("https://api.soniox.com/v1/files", files=files, headers=headers)
             
@@ -185,11 +186,13 @@ async def transcribe_audio(
             
             file_id = upload_resp.json()["id"]
             logger.info(f"步骤 1/4: 文件 ID: {file_id}")
-            
+        
+        # 后续操作用独立 client，每次请求 30 秒超时即可（轮询是循环调用）
+        async with httpx.AsyncClient(timeout=30.0) as client:
             logger.info("步骤 2/4: 创建转录任务...")
             config = {
                 "file_id": file_id,
-                "model": "stt-async-v3",
+                "model": "stt-async-v4",
                 "enable_speaker_diarization": enable_diarization,
                 "enable_language_identification": True
             }
@@ -304,14 +307,14 @@ async def websocket_transcribe(websocket: WebSocket):
         
         soniox_config = {
             "api_key": api_key,
-            "model": config.get("model", "stt-rt-preview"),
+            "model": config.get("model", "stt-rt-v4"),
             "audio_format": config.get("audio_format", "auto"),
             "enable_speaker_diarization": config.get("enable_speaker_diarization", False),
             "enable_language_identification": config.get("enable_language_identification", False),
             "enable_endpoint_detection": config.get("enable_endpoint_detection", False)
         }
         
-        for key in ["language_hints", "translation", "context", "sample_rate", "num_channels"]:
+        for key in ["language_hints", "language_hints_strict", "translation", "context", "sample_rate", "num_channels", "max_endpoint_delay_ms", "client_reference_id"]:
             if key in config:
                 soniox_config[key] = config[key]
         
@@ -319,7 +322,7 @@ async def websocket_transcribe(websocket: WebSocket):
         soniox_ws = await websockets.connect(
             "wss://stt-rt.soniox.com/transcribe-websocket",
             ping_interval=None,
-            close_timeout=10
+            close_timeout=30
         )
         logger.success("Soniox 连接成功")
         

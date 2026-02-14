@@ -5,7 +5,7 @@ FROM python:3.9-slim
 
 # 安装 Nginx 和 FFmpeg
 RUN apt-get update && \
-    apt-get install -y nginx ffmpeg && \
+    apt-get install -y nginx ffmpeg curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

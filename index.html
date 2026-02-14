@@ -108,8 +108,8 @@
                             <div class="form-group" style="flex: 1; min-width: 200px;">
                                 <label for="restModel" style="color: white; margin-bottom: 5px; display: block;">模型选择:</label>
                                 <select id="restModel" class="lang-select" style="width: 100%; padding: 8px; border-radius: 6px;">
-                                    <option value="stt-async-v3">stt-async-v3 (推荐)</option>
-                                    <option value="stt-async-preview">stt-async-preview</option>
+                                    <option value="stt-async-v4">stt-async-v4 (推荐)</option>
+                                    <option value="stt-async-v3">stt-async-v3</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex: 1; min-width: 300px;">
@@ -276,6 +276,19 @@
                             <span class="slider"></span>
                             <span class="label-text">语言标注</span>
                         </label>
+                        
+                        <label class="switch">
+                            <input type="checkbox" id="wsLanguageStrict">
+                            <span class="slider"></span>
+                            <span class="label-text">严格语言模式</span>
+                        </label>
+                        
+                        <div class="concurrency-control">
+                            <label for="maxEndpointDelay">端点延迟</label>
+                            <input type="number" id="maxEndpointDelay" min="500" max="3000" value="2000" step="100">
+                            <span class="hint-text">ms (500-3000)</span>
+                        </div>
+                        
                         <span class="hint" style="color: rgba(255,255,255,0.9); font-size: 12px; margin-left: 10px;">
                             示例: <span style="color: #4CAF50; font-weight: 600; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">[EN] Hello</span> 
                             <span style="color: #64B5F6; font-weight: 600; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px;">[ZH] 你好</span>
@@ -674,7 +687,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260102-2330"></script>
+    <script src="app.js?v=20260214"></script>
     <script>
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -682,104 +695,6 @@
             event.target.classList.add('active');
             document.getElementById(tab + '-tab').classList.add('active');
         }
-
-        function wsLog(msg, type = 'info') {
-            const logDiv = document.getElementById('wsLog');
-            const time = new Date().toLocaleTimeString();
-            const colors = { info: '#4CAF50', error: '#f44336', warning: '#ff9800' };
-            logDiv.innerHTML += `<div style="color: ${colors[type]};">[${time}] ${msg}</div>`;
-            logDiv.scrollTop = logDiv.scrollHeight;
-        }
-
-        function wsUpdateStatus(msg, type = 'info') {
-            const statusDiv = document.getElementById('wsStatus');
-            statusDiv.style.display = 'block';
-            statusDiv.textContent = msg;
-            const colors = { info: '#2196F3', success: '#4CAF50', error: '#f44336' };
-            statusDiv.style.background = colors[type] + '20';
-            statusDiv.style.color = colors[type];
-        }
-
-        document.getElementById('wsClearLog').onclick = () => document.getElementById('wsLog').innerHTML = '';
-
-        document.getElementById('wsStartBtn').onclick = async () => {
-            const keysValue = document.getElementById('apiKey').value.trim();
-            const fileInput = document.getElementById('wsFile');
-            
-            if (!keysValue) { alert('请输入 API Keys'); return; }
-            if (!fileInput.files[0]) { alert('请选择文件'); return; }
-
-            const keys = keysValue.split(',').map(k => k.trim()).filter(k => k);
-            const apiKey = keys[Math.floor(Math.random() * keys.length)];
-            const file = fileInput.files[0];
-
-            wsLog(`📁 ${file.name} (${(file.size/1024/1024).toFixed(2)}MB)`);
-            wsLog(`🔑 Key: ${apiKey.substring(0, 10)}...`);
-
-            document.getElementById('wsStartBtn').disabled = true;
-            document.getElementById('wsResult').textContent = '';
-            wsUpdateStatus('连接中...', 'info');
-
-            try {
-                const ws = new WebSocket('ws://localhost:8001/ws/transcribe');
-                let text = '';
-
-                ws.onopen = async () => {
-                    wsLog('✅ 已连接');
-                    ws.send(JSON.stringify({
-                        api_key: apiKey,
-                        model: 'stt-rt-v3',
-                        audio_format: 'auto',
-                        enable_speaker_diarization: document.getElementById('wsDiarization').checked
-                    }));
-
-                    wsUpdateStatus('发送音频...', 'info');
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        const buf = e.target.result;
-                        for (let i = 0; i < buf.byteLength; i += 3840) {
-                            if (ws.readyState === 1) {
-                                ws.send(buf.slice(i, Math.min(i + 3840, buf.byteLength)));
-                                await new Promise(r => setTimeout(r, 10));
-                            }
-                        }
-                        ws.send(new ArrayBuffer(0));
-                        wsLog('✅ 发送完成');
-                        wsUpdateStatus('转录中...', 'info');
-                    };
-                    reader.readAsArrayBuffer(file);
-                };
-
-                ws.onmessage = (e) => {
-                    const r = JSON.parse(e.data);
-                    if (r.error || r.error_code) {
-                        const err = r.error_message || r.error || `错误: ${r.error_code}`;
-                        wsLog(`❌ ${err}`, 'error');
-                        wsUpdateStatus(err, 'error');
-                        ws.close();
-                        document.getElementById('wsStartBtn').disabled = false;
-                        return;
-                    }
-                    if (r.tokens) r.tokens.forEach(t => { if (t.is_final) text += t.text; });
-                    document.getElementById('wsResult').textContent = text;
-                    if (r.finished) {
-                        wsLog('✅ 完成');
-                        wsUpdateStatus('完成！', 'success');
-                        ws.close();
-                        document.getElementById('wsStartBtn').disabled = false;
-                    }
-                };
-
-                ws.onerror = () => {
-                    wsLog('❌ 连接错误', 'error');
-                    wsUpdateStatus('错误', 'error');
-                    document.getElementById('wsStartBtn').disabled = false;
-                };
-            } catch (error) {
-                wsLog(`❌ ${error.message}`, 'error');
-                document.getElementById('wsStartBtn').disabled = false;
-            }
-        };
     </script>
 
     <!-- 页脚 -->
