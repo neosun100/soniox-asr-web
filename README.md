@@ -23,7 +23,7 @@ A complete speech recognition web application based on Soniox API, supporting fi
 
 <div align="center">
 
-![REST API Batch Upload Interface](screenshot-rest-api.png)
+![REST API Batch Upload Interface](screenshot-rest-api.png?v=5.0.0)
 
 *File transcription interface with audio processing options: noise reduction, speed change, and batch upload support*
 
@@ -33,7 +33,7 @@ A complete speech recognition web application based on Soniox API, supporting fi
 
 <div align="center">
 
-![WebSocket Real-time Interface](screenshot-websocket.png)
+![WebSocket Real-time Interface](screenshot-websocket.png?v=5.0.0)
 
 *Real-time speech recognition with multilingual translation and speaker diarization*
 
