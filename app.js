@@ -1342,33 +1342,7 @@ async function doConnect() {
                 
                 // 紧凑渲染：使用累积的所有 tokens + 当前 non-final
                 const resultDiv = document.getElementById('wsResult');
-                
-                // 显示累积的所有 tokens + 当前 non-final
                 const allTokens = [...wsAllSessionTokens, ...nonFinalTokens];
-                
-                // 分离原文和翻译 tokens
-                const originalTokens = allTokens.filter(t => t.translation_status !== 'translation' && (t.text || '').trim() !== '<end>');
-                const translationTokens = allTokens.filter(t => t.translation_status === 'translation' && (t.text || '').trim() !== '<end>');
-                const hasTranslation = translationTokens.length > 0;
-                
-                // 按说话人分段（仅对原文）
-                const segments = [];
-                let currentSeg = { speaker: null, lang: null, tokens: [] };
-                
-                originalTokens.forEach(token => {
-                    const speakerChanged = token.speaker !== undefined && token.speaker !== currentSeg.speaker;
-                    if (speakerChanged && currentSeg.tokens.length > 0) {
-                        segments.push({...currentSeg});
-                        currentSeg = { speaker: token.speaker, lang: token.language, tokens: [] };
-                    }
-                    if (currentSeg.speaker === null) {
-                        currentSeg.speaker = token.speaker;
-                        currentSeg.lang = token.language;
-                    }
-                    currentSeg.tokens.push(token);
-                    currentSeg.lang = token.language || currentSeg.lang;
-                });
-                if (currentSeg.tokens.length > 0) segments.push(currentSeg);
                 
                 // 颜色工具
                 const speakerColors = ['#667eea', '#059669', '#dc2626', '#f59e0b', '#7c3aed', '#0891b2', '#db2777', '#ea580c', '#65a30d', '#8b5cf6'];
@@ -1391,27 +1365,51 @@ async function doConnect() {
                     }).join('');
                 }
                 
-                // 渲染原文段落
-                const finalHtml = segments.map(seg => {
-                    const sc = seg.speaker !== null ? speakerColors[seg.speaker % 10] : '#333';
-                    const speaker = seg.speaker !== null ? `<strong style="color: ${sc};">说话人${seg.speaker}:</strong> ` : '';
-                    const lc = ensureLangColor(seg.lang);
-                    const lang = seg.lang ? `<span style="background: ${lc}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">[${seg.lang.toUpperCase()}]</span> ` : '';
-                    return `<div style="margin: 2px 0; color: #333;">${speaker}${lang}${renderTkText(seg.tokens)}</div>`;
-                }).join('');
+                // 按 token 原始顺序分组：original/translation/none 交替分段
+                // Soniox 返回顺序: 原文tokens → 翻译tokens → <end> → 原文tokens → ...
+                const groups = []; // {type:'original'|'translation', speaker, lang, tokens}
+                let curGroup = null;
                 
-                // 翻译内容显示在原文下方（按 <end> 分段配对）
-                let transHtml = '';
-                if (hasTranslation) {
-                    const tl = translationTokens[0]?.language || '?';
-                    const tc = ensureLangColor(tl);
-                    transHtml = `<div style="margin: 4px 0 8px 20px; padding-left: 12px; border-left: 3px solid ${tc}40; line-height: 1.8;">
-                        <span style="background: ${tc}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">🌐 ${tl.toUpperCase()}</span>
-                        <span style="color: ${tc}; margin-left: 8px;">${renderTkText(translationTokens)}</span>
-                    </div>`;
-                }
+                allTokens.forEach(token => {
+                    if ((token.text || '').trim() === '<end>') return;
+                    const isTrans = token.translation_status === 'translation';
+                    const type = isTrans ? 'translation' : 'original';
+                    const speakerChanged = !isTrans && token.speaker !== undefined && curGroup && curGroup.speaker !== token.speaker;
+                    const typeChanged = curGroup && curGroup.type !== type;
+                    
+                    if (!curGroup || typeChanged || speakerChanged) {
+                        if (curGroup && curGroup.tokens.length > 0) groups.push(curGroup);
+                        curGroup = { type, speaker: token.speaker, lang: token.language, tokens: [] };
+                    }
+                    curGroup.tokens.push(token);
+                    curGroup.lang = token.language || curGroup.lang;
+                    if (token.speaker !== undefined) curGroup.speaker = token.speaker;
+                });
+                if (curGroup && curGroup.tokens.length > 0) groups.push(curGroup);
                 
-                resultDiv.innerHTML = finalHtml + transHtml;
+                // 渲染：原文段落正常显示，翻译段落缩进+左边框
+                let lastSpeaker = null;
+                const htmlParts = [];
+                
+                groups.forEach(g => {
+                    const sc = g.speaker !== null ? speakerColors[(g.speaker || 0) % 10] : '#333';
+                    const lc = ensureLangColor(g.lang);
+                    
+                    if (g.type === 'original') {
+                        // 说话人变化时显示标签
+                        const showSpeaker = g.speaker !== null && g.speaker !== lastSpeaker;
+                        if (showSpeaker) lastSpeaker = g.speaker;
+                        const speaker = showSpeaker ? `<strong style="color: ${sc};">说话人${g.speaker}:</strong> ` : '';
+                        const lang = g.lang ? `<span style="background: ${lc}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">[${g.lang.toUpperCase()}]</span> ` : '';
+                        htmlParts.push(`<div style="margin: 2px 0; color: #333;">${speaker}${lang}${renderTkText(g.tokens)}</div>`);
+                    } else {
+                        // 翻译行：缩进 + 左边框
+                        const lang = g.lang ? `<span style="background: ${lc}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">🌐 ${g.lang.toUpperCase()}</span> ` : '';
+                        htmlParts.push(`<div style="margin: 2px 0 8px 20px; padding-left: 12px; border-left: 3px solid ${lc}40; color: ${lc};">${lang}${renderTkText(g.tokens)}</div>`);
+                    }
+                });
+                
+                resultDiv.innerHTML = htmlParts.join('');
 
                 // 显示非 final tokens（临时，灰色斜体）
                 const tempText = nonFinalTokens.map(t => t.text || '').join('');
