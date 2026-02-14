@@ -621,6 +621,38 @@ python-multipart==0.0.6
 
 ## 🔄 Changelog
 
+### v5.0.0 (2026-02-14)
+
+**🎯 Major Update: All Models Upgraded to v4**
+
+**🔄 Model Migration**
+- `stt-async-v3` → `stt-async-v4` (async batch transcription)
+- `stt-rt-v3` → `stt-rt-v4` (real-time WebSocket)
+- Removed `stt-rt-preview` as default
+
+**✨ New v4 Parameters**
+- `max_endpoint_delay_ms` (500-3000ms) - controls end-of-speech detection delay
+- `language_hints_strict` - strict language mode
+- `client_reference_id` - client tracking support
+
+**🔧 Backend Improvements**
+- Timeout architecture refactored: split upload (600s) and poll (30s) HTTP clients
+- WebSocket `close_timeout` increased from 10s to 30s
+- All v4 parameters forwarded to Soniox API
+
+**🎨 Frontend Cleanup**
+- New UI controls for endpoint delay and strict language mode
+- Removed ~60 lines of duplicate inline WebSocket code
+- Cleaned all debug `console.log`/`trace`/`warn` statements
+
+**🐳 Docker & Deployment**
+- Added `curl` to Dockerfile for healthcheck
+- Nginx config updated: added `/redoc`, `/health`, `/version`, `/api/` proxy routes
+- `/transcribe` route: 7200s timeout + 500M upload limit
+
+**🧪 Testing**
+- Added 29-test E2E test suite (system, API, transcription, Soniox direct, timeout, code quality)
+
 ### v4.0.0 (2026-01-03)
 
 **🎯 重大更新：完整 API 覆盖 + MCP 支持**
