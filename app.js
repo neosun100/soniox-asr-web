@@ -1388,7 +1388,6 @@ async function doConnect() {
                 if (curGroup && curGroup.tokens.length > 0) groups.push(curGroup);
                 
                 // 渲染：原文段落正常显示，翻译段落缩进+左边框
-                let lastSpeaker = null;
                 const htmlParts = [];
                 
                 groups.forEach(g => {
@@ -1397,9 +1396,7 @@ async function doConnect() {
                     
                     if (g.type === 'original') {
                         // 说话人变化时显示标签
-                        const showSpeaker = g.speaker !== null && g.speaker !== lastSpeaker;
-                        if (showSpeaker) lastSpeaker = g.speaker;
-                        const speaker = showSpeaker ? `<strong style="color: ${sc};">说话人${g.speaker}:</strong> ` : '';
+                        const speaker = g.speaker !== null ? `<strong style="color: ${sc};">说话人${g.speaker}:</strong> ` : '';
                         const lang = g.lang ? `<span style="background: ${lc}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">[${g.lang.toUpperCase()}]</span> ` : '';
                         htmlParts.push(`<div style="margin: 2px 0; color: #333;">${speaker}${lang}${renderTkText(g.tokens)}</div>`);
                     } else {
