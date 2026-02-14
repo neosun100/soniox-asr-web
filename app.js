@@ -1317,10 +1317,14 @@ async function doConnect() {
                 
                 // 累积保存所有 final tokens
                 finalTokens.forEach(token => {
-                    // 检查是否已存在（避免重复）
-                    const exists = wsAllSessionTokens.some(t => 
-                        t.start_ms === token.start_ms && t.end_ms === token.end_ms && t.text === token.text
-                    );
+                    // 翻译 token 时间戳为0，用索引+文本去重
+                    const isTranslation = token.translation_status === 'translation';
+                    const exists = isTranslation
+                        ? false  // 翻译 token 不去重，按顺序全部保留
+                        : wsAllSessionTokens.some(t =>
+                            t.translation_status !== 'translation' &&
+                            t.start_ms === token.start_ms && t.end_ms === token.end_ms && t.text === token.text
+                        );
                     if (!exists) {
                         wsAllSessionTokens.push(token);
                     }
@@ -1338,71 +1342,77 @@ async function doConnect() {
                 
                 // 紧凑渲染：使用累积的所有 tokens + 当前 non-final
                 const resultDiv = document.getElementById('wsResult');
-                const segments = [];
-                let currentSeg = { speaker: null, lang: null, tokens: [] };
                 
                 // 显示累积的所有 tokens + 当前 non-final
                 const allTokens = [...wsAllSessionTokens, ...nonFinalTokens];
-                allTokens.forEach(token => {
-                    if (token.text?.trim() === '<end>') return;
-                    
-                    // 说话人切换或语言切换时分段
+                
+                // 分离原文和翻译 tokens
+                const originalTokens = allTokens.filter(t => t.translation_status !== 'translation' && (t.text || '').trim() !== '<end>');
+                const translationTokens = allTokens.filter(t => t.translation_status === 'translation' && (t.text || '').trim() !== '<end>');
+                const hasTranslation = translationTokens.length > 0;
+                
+                // 按说话人分段（仅对原文）
+                const segments = [];
+                let currentSeg = { speaker: null, lang: null, tokens: [] };
+                
+                originalTokens.forEach(token => {
                     const speakerChanged = token.speaker !== undefined && token.speaker !== currentSeg.speaker;
-                    const langChanged = token.language && token.language !== currentSeg.lang;
-                    
-                    if ((speakerChanged || langChanged) && currentSeg.tokens.length > 0) {
+                    if (speakerChanged && currentSeg.tokens.length > 0) {
                         segments.push({...currentSeg});
                         currentSeg = { speaker: token.speaker, lang: token.language, tokens: [] };
                     }
-                    
-                    // 初始化第一个 segment
                     if (currentSeg.speaker === null) {
                         currentSeg.speaker = token.speaker;
                         currentSeg.lang = token.language;
                     }
-                    
                     currentSeg.tokens.push(token);
                     currentSeg.lang = token.language || currentSeg.lang;
                 });
                 if (currentSeg.tokens.length > 0) segments.push(currentSeg);
                 
-                const finalHtml = segments.map(seg => {
-                    // 说话人颜色（10种清晰颜色）
-                    const speakerColors = ['#667eea', '#059669', '#dc2626', '#f59e0b', '#7c3aed', '#0891b2', '#db2777', '#ea580c', '#65a30d', '#8b5cf6'];
-                    const speakerColor = seg.speaker !== null ? speakerColors[seg.speaker % 10] : '#333';
-                    const speaker = seg.speaker !== null ? `<strong style="color: ${speakerColor};">说话人${seg.speaker}:</strong> ` : '';
-                    
-                    // 动态分配颜色（最多5种清晰颜色）
-                    const colorPalette = ['#2563eb', '#059669', '#dc2626', '#f59e0b', '#7c3aed']; // 蓝、绿、红、橙、紫
-                    if (!window.langColorMap) window.langColorMap = {};
-                    if (seg.lang && !window.langColorMap[seg.lang]) {
-                        const usedColors = Object.values(window.langColorMap);
-                        const availableColor = colorPalette.find(c => !usedColors.includes(c)) || colorPalette[0];
-                        window.langColorMap[seg.lang] = availableColor;
+                // 颜色工具
+                const speakerColors = ['#667eea', '#059669', '#dc2626', '#f59e0b', '#7c3aed', '#0891b2', '#db2777', '#ea580c', '#65a30d', '#8b5cf6'];
+                const colorPalette = ['#2563eb', '#059669', '#dc2626', '#f59e0b', '#7c3aed'];
+                if (!window.langColorMap) window.langColorMap = {};
+                function ensureLangColor(lang) {
+                    if (lang && !window.langColorMap[lang]) {
+                        const used = Object.values(window.langColorMap);
+                        window.langColorMap[lang] = colorPalette.find(c => !used.includes(c)) || colorPalette[0];
                     }
-                    const langColor = seg.lang ? window.langColorMap[seg.lang] : '#6b7280';
-                    const lang = seg.lang ? `<span style="background: ${langColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">[${seg.lang.toUpperCase()}]</span> ` : '';
-                    const text = seg.tokens.map(t => {
+                    return lang ? window.langColorMap[lang] : '#6b7280';
+                }
+                function renderTkText(tokens) {
+                    return tokens.map(t => {
                         const conf = t.confidence !== undefined ? t.confidence : 1.0;
-                        const textContent = escapeHtml(t.text || '');
-                        
-                        // 非 final 用灰色斜体
-                        if (!t.is_final) {
-                            return `<span style="color: #999; font-style: italic;">${textContent}</span>`;
-                        }
-                        
-                        // 低置信度高亮
-                        if (conf < 0.7) {
-                            return `<span style="background: #fff3cd; padding: 1px 3px;" title="置信度: ${(conf*100).toFixed(1)}%">${textContent}</span>`;
-                        }
-                        
-                        return textContent;
+                        const tc = escapeHtml(t.text || '');
+                        if (!t.is_final) return `<span style="color: #999; font-style: italic;">${tc}</span>`;
+                        if (conf < 0.7) return `<span style="background: #fff3cd; padding: 1px 3px;" title="置信度: ${(conf*100).toFixed(1)}%">${tc}</span>`;
+                        return tc;
                     }).join('');
-                    return `<div style="margin: 2px 0; color: #333;">${speaker}${lang}${text}</div>`;
+                }
+                
+                // 渲染原文段落
+                const finalHtml = segments.map(seg => {
+                    const sc = seg.speaker !== null ? speakerColors[seg.speaker % 10] : '#333';
+                    const speaker = seg.speaker !== null ? `<strong style="color: ${sc};">说话人${seg.speaker}:</strong> ` : '';
+                    const lc = ensureLangColor(seg.lang);
+                    const lang = seg.lang ? `<span style="background: ${lc}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">[${seg.lang.toUpperCase()}]</span> ` : '';
+                    return `<div style="margin: 2px 0; color: #333;">${speaker}${lang}${renderTkText(seg.tokens)}</div>`;
                 }).join('');
                 
-                resultDiv.innerHTML = finalHtml;
+                // 翻译内容显示在原文下方（按 <end> 分段配对）
+                let transHtml = '';
+                if (hasTranslation) {
+                    const tl = translationTokens[0]?.language || '?';
+                    const tc = ensureLangColor(tl);
+                    transHtml = `<div style="margin: 4px 0 8px 20px; padding-left: 12px; border-left: 3px solid ${tc}40; line-height: 1.8;">
+                        <span style="background: ${tc}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">🌐 ${tl.toUpperCase()}</span>
+                        <span style="color: ${tc}; margin-left: 8px;">${renderTkText(translationTokens)}</span>
+                    </div>`;
+                }
                 
+                resultDiv.innerHTML = finalHtml + transHtml;
+
                 // 显示非 final tokens（临时，灰色斜体）
                 const tempText = nonFinalTokens.map(t => t.text || '').join('');
                 if (tempText) {
