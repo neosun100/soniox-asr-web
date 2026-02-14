@@ -1824,6 +1824,34 @@ document.getElementById('wsDownloadBtn').addEventListener('click', () => {
     wsLog(`💾 已下载: 转录_${timestamp}.txt`);
 });
 
+// 复制转录结果到剪贴板
+function copyWsResult() {
+    const el = document.getElementById('wsResult');
+    const text = el.innerText.trim();
+    if (!text) {
+        alert('没有可复制的内容');
+        return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('wsCopyBtn');
+        const orig = btn.textContent;
+        btn.textContent = '✅ 已复制';
+        setTimeout(() => btn.textContent = orig, 2000);
+    }).catch(() => {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        const btn = document.getElementById('wsCopyBtn');
+        const orig = btn.textContent;
+        btn.textContent = '✅ 已复制';
+        setTimeout(() => btn.textContent = orig, 2000);
+    });
+}
+
 document.getElementById('wsClearResult').addEventListener('click', () => {
     if (confirm('确定要清空所有转录内容吗？')) {
         document.getElementById('wsResult').innerHTML = '';
